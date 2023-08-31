@@ -1,0 +1,46 @@
+---
+title: "Homework 2"
+author: "Mike Kozlowski"
+date: "2023-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+2.4.6 (the previous questions were included with my submission of Homework 1)
+
+Predict the outcome of the following R statements and explain the reasoning behind your answer:
+
+    a. 1 + NA
+    b. mean(c(1,NULL,3))
+    c. Inf/Inf
+    d. sin(Inf)
+    e. NULL == NA
+    f. NA | TRUE
+
+a) Since NA signifies a missing value, adding 1 to NA should result in either some kind of error or possibly 1. Since you're adding a value into a space where a value is missing, maybe R will substitute the missing value for what is being added to it.
+```{r}
+1+NA
+```
+b) Since NULL represents the empty set, (1, NULL, 3) can be seen sort of like just (1,3), as the empty set is implied to be part of that as well. So, I predict that the outcome will be 2.
+```{r}
+mean(c(1,NULL,3))
+```
+c) This can go in multiple directions. It should either result in an undefined error, NaN, or Inf. Honestly, it's hard to say how the system will handle this computation. My instinct tells me that it will result in Inf, but it's difficult to say if the system will handle this as it should. There are multiple orders of infinity but as far as I'm aware, infinity / infinity is still infinity and is the same sized infinity.
+```{r}
+Inf/Inf
+```
+d) Since trigonometric functions operate on radians rather than degrees, this seems like it MAY be possible, but since infinity is not a number, it should not function, and should either error or return NaN.
+```{r}
+sin(Inf)
+```
+e) This should return some kind of error, as a missing value is kind of part of the empty set, but they represent two different things within R.
+```{r}
+NULL == NA
+```
+f) True OR a missing value should result in true as your only option in that case is true. 
+```{r}
+NA | TRUE
+```

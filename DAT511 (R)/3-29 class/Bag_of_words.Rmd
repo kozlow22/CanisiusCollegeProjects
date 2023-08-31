@@ -1,0 +1,323 @@
+---
+title: "Bag of Words"
+author: "HDS"
+date: "10/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Working with Text as a bag of words
+
+Here, we are working with a story again, "The Sword of Welleran" by Dunsany.
+
+We load each line as a seperate string, and then we can print out a bit.
+
+In a work setting, each line might be an online comment, or product review, or customer complaint.  Each line is typically a distinct comment or review.
+
+This example is going to show how we might use these types of data, and how to prepare them for further analysis.
+
+
+```{r}
+
+fc=file(file.choose(),open="rt")
+my_text=readLines(fc)
+close(fc)
+my_text[48:68]
+
+```
+
+We are going to use a package called tm, and convert our list of strings to a storage class in tm called a "source"
+
+```{r}
+require(tm)
+sw_source<-VectorSource(my_text)
+```
+
+From the source, we create corpus - corpus means "a body of work", and usually refers to a group of writing.
+
+The set of reviews would be called the corpus for analysis, for example
+
+The tm package has a specialized storage classed called a corpus
+
+```{r}
+sw_corpus<-VCorpus(sw_source)
+```
+
+Here's what is in a corpus structure
+
+```{R}
+sw_corpus[[48]]
+```
+```{r}
+sw_corpus[[48]][1]
+```
+```{r}
+str(sw_corpus[[48]])
+```
+#Stopwords
+
+English "structural words"
+
+```{r}
+stopwords('en')
+```
+
+#Clean up mytext and convert it to a corpus again
+
+-convert it all to lower case
+-remove all the punctuation
+-remove all the numbers
+-remove the "stopwords" that aid sentence structure but carry little meaning
+-remove all the whitespace around the beginning and end of the text
+-convert the cleaned text to a source and then to a corpus
+
+```{r}
+my_text<-tolower(my_text)
+my_text<-removePunctuation(my_text)
+my_text<-removeNumbers(my_text)
+my_text<-removeWords(my_text, stopwords("en"))
+my_text<-stripWhitespace(my_text)
+clean_source<-VectorSource(my_text)
+clean_corpus<-VCorpus(clean_source)
+```
+
+What is left?
+```{r}
+clean_corpus[[50]][1]
+```
+
+Now two steps comming up
+
+Code each word in the cleaned corpus as an integer
+
+Each sentence is now a sequence of integers
+
+Create a data terms matrix, where each row is a word and each column is piec of text.  Each column has a zero for each word not present in the text and a 1 for each word that is present.
+
+This is the "bag of words" model- each piece of text is reduced to a set of numbered words present, no sentence order, no punctuation, no "stopwords"
+
+We convert the tm structure dtm into an ordinary matrix,
+
+then compute the counts for each word (the rowsums) and sort them by number of occurrences, storing this in the dataframe d.
+
+d is then the counts of all the word occurrences in the entire corpus
+
+```{r}
+dtm<-TermDocumentMatrix(clean_corpus)
+mterms<-as.matrix(dtm)
+v<-sort(rowSums(mterms),decreasing=TRUE)
+d<-data.frame(word=names(v),freq=v)
+head(d,20)
+```
+
+Leothric is the protagonistic in this story.  He travels around alot, so "came" and "went" appear a lot.
+
+night and soul appear a lot, which probably tells us something as well
+
+welleran and sword appear a lot
+
+How many words and how many lines?
+4194 words (without the stopwards, kind of a large vocabulary)
+3833 lines in the story
+
+
+```{r}
+dim(dtm)
+```
+```{r}
+mterms[100:110,50:60]
+```
+#Word Cloud
+
+Word clouds are ways to visually display word frequencies.
+
+They are kind of interesting graphics,  quite appealing.
+
+```{r}
+require('wordcloud')
+wordcloud(words=d$word,freq=d$freq,min.freq=3,max.words=100,rot.per=0.35)
+```
+#Associations
+
+We can find out which words commonly appear in the same line of text
+
+```{r}
+findAssocs(dtm,terms="leothric",corlimit=0.1)
+```
+
+Lots of active verbs, get out there and smote 'em
+
+
+```{r}
+findAssocs(dtm,terms="welleran",corlimit=0.1)
+```
+Welleran is a legendary hero, rather than an active presence in the story
+
+```{r}
+findAssocs(dtm,terms="dragon",corlimit=0.1)
+```
+Hmm,  an interesting dragon
+
+
+
+
+#Sentiment Analysis
+
+This is an attempt to categorize text as postive or negative in attitude or sentiment,  this is an area within Natural Language Processing.   The example here is using an R package (sentimentAnalysis) which uses a dictionary driven approach to classifying pieces of text as positive, neutral or negative in sentiment or attitude.
+
+It can use 4 different dictories, QDAP, HarvardIV and Loughran-McDonald.  You can also create your own dictionary.
+
+The dictionary has a list of words that are scored as positive or negative, the corpus is then scored based on the aggregate scores of words in the corpus.  The dictionaries are human created, typically be having humans score many sentences from published material which are averaged to create the dictionaries.   These systems are subject to bias, and to the nature of the literature/writings used to create the training set and dictionaries.   
+
+It also possible to train a neural net to classify sentences,  using much the same tactics.  Humans score the corpus of a training set, which is used to train the AI system, which then classifies new text submitted to it.  AI systems work on the dtm matrix as created earlier in this file.
+
+We won't look at an AI system today, but rather the dictionary based systems.  There are a number of different dictionaries, based on different bodies of text. Some of them do contain racial bias, as well a number of other types of bias.  One can create one's own dictionaries, which will be a lot of work.
+
+
+
+See
+
+https://cran.r-project.org/web/packages/SentimentAnalysis/vignettes/SentimentAnalysis.html
+
+```{r}
+require('SentimentAnalysis')
+sa<-analyzeSentiment("Hey, Bob did a good job today")
+sa
+convertToBinaryResponse(sa)$SentimentQDAP
+```
+#More Dictionaries
+
+Sentiment analysis can be run using one or more dictionaries at a time
+
+QDAP- from the package qdapDictionaries
+
+HE-Henry's Financial Dictionary, (2008)
+
+Loughran-McDonald Financial Dictionary (2011)
+
+Harvard IV- GI- General inquiry
+
+```{r}
+dict.LM<-loadDictionaryLM()
+dict.GI<-loadDictionaryGI()
+dict.HE<-loadDictionaryHE()
+```
+
+#Sentiments from a Corpus
+
+Below is the sentiment analysis run on the cleaned corpus of "The Sword of Welleran"
+
+```{r}
+dtemp<-preprocessCorpus(clean_corpus)
+sentiment_direction<-convertToDirection(analyzeSentiment(dtemp)$SentimentQDAP)
+```
+
+
+Let's look at a few lines, and look at the sentiment direction and the actual cleaned line
+```{r}
+for (k in 50:60)
+{
+  print(sentiment_direction[k])
+  cat(my_text[k],"\n")
+}
+
+```
+
+Let's run the sentiment analysis on the whole text, not the cleaned version.  It still has to be input as a corpus
+
+```{r}
+dtemp<-preprocessCorpus(sw_corpus)
+sw_sa<-analyzeSentiment(dtemp)
+sentiment_direction<-convertToDirection(sw_sa$SentimentQDAP)
+```
+
+```{r}
+str(sw_sa)
+```
+
+Let's look at a few lines, and look at the sentiment direction and the actual cleaned line
+```{r}
+for (k in 50:60)
+{
+  print(sentiment_direction[k])
+  print(unlist(sw_corpus[k])["content.content"])
+  cat("\n")
+}
+
+```
+
+```{r}
+table(convertToDirection(sw_sa$SentimentQDAP))
+```
+```{r}
+table(convertToDirection(sw_sa$SentimentLM))
+```
+
+```{r}
+unlist(sw_corpus[which.max(sw_sa$SentimentQDAP)])["content.content"]
+```
+
+```{r}
+unlist(sw_corpus[which.min(sw_sa$SentimentQDAP)])["content.content"]
+```
+```{r}
+hist(scale(sw_sa$SentimentQDAP))
+```
+```{r}
+cor(na.omit(sw_sa[, c("SentimentLM", "SentimentHE", "SentimentQDAP","SentimentGI")]))
+```
+
+
+
+
+
+
+
+
+
+#Changing a dictionary
+
+We can use an alternative dictionary, such as the Loughran-McDonald dictionary
+
+
+```{r}
+data("DictionaryLM")
+DictionaryLM
+```
+```{r}
+plotSentiment(sw_sa)
+```
+```{r}
+plotSentimentResponse(sw_sa)
+```
+
+
+
+```{r}
+dict.LM<-loadDictionaryLM()
+dict.GI<-loadDictionaryGI()
+```
+
+
+```{r}
+dtemp<-preprocessCorpus(sw_corpus)
+sentiment_direction<-convertToDirection(analyzeSentiment(dtemp,rules=list("SentimentLM"=list(ruleSentiment, 
+                                                            loadDictionaryLM())))$SentimentQDAP)
+```
+
+
+Let's look at a few lines, and look at the sentiment direction and the actual cleaned line
+```{r}
+for (k in 50:60)
+{
+  print(sentiment_direction[k])
+  print(unlist(sw_corpus[k])["content.content"])
+  cat("\n")
+}
+
+```
+
+

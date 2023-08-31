@@ -1,0 +1,78 @@
+---
+title: "Cervical Cancer Cleaning"
+author: "Mike Kozlowski"
+date: "2023-02-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+ccDataFile="F:\\Chrome Downloads\\risk_factors_cervical_cancer.csv"
+```
+
+Checking the types that the attributes were set to in order to verify that the types are properly set.
+
+```{r}
+cervCanc=read.table(ccDataFile,header=TRUE,na.strings="?",sep=",",fill=TRUE)
+head(cervCanc)
+str(cervCanc)
+```
+
+It appears that several data types that should have been set to bool have been set to num. The data set doesn't really make sense in some ways according to the attribute information listed online though, as fields like "Smokes (years)" is set to bool, when it's telling you how many years that patient smoked. So I have no idea why it says it should be a bool on the website. I'm going to use some common sense and ignore the attributes that seem like they should remain integers/num and will fix the ones that make sense to be boolean, such as "Smokes". Fixing those:
+
+```{r}
+cervCanc$Smokes <- as.logical(cervCanc$Smokes)
+cervCanc$STDs <- as.logical(cervCanc$STDs)
+cervCanc$Hormonal.Contraceptives <- as.logical(cervCanc$Hormonal.Contraceptives)
+cervCanc$IUD <- as.logical(cervCanc$IUD)
+cervCanc$STDs.condylomatosis <- as.logical(cervCanc$STDs.condylomatosis)
+cervCanc$STDs.cervical.condylomatosis <- as.logical(cervCanc$STDs.cervical.condylomatosis)
+cervCanc$STDs.vaginal.condylomatosis <- as.logical(cervCanc$STDs.vaginal.condylomatosis)
+cervCanc$STDs.vulvo.perineal.condylomatosis <- as.logical(cervCanc$STDs.vulvo.perineal.condylomatosis)
+cervCanc$STDs.syphilis <- as.logical(cervCanc$STDs.syphilis)
+cervCanc$STDs.pelvic.inflammatory.disease <- as.logical(cervCanc$STDs.pelvic.inflammatory.disease)
+cervCanc$STDs.genital.herpes <- as.logical(cervCanc$STDs.genital.herpes)
+cervCanc$STDs.molluscum.contagiosum <- as.logical(cervCanc$STDs.molluscum.contagiosum)
+cervCanc$STDs.AIDS <- as.logical(cervCanc$STDs.AIDS)
+cervCanc$STDs.HIV <- as.logical(cervCanc$STDs.HIV)
+cervCanc$STDs.Hepatitis.B <- as.logical(cervCanc$STDs.Hepatitis.B)
+cervCanc$STDs.HPV <- as.logical(cervCanc$STDs.HPV)
+cervCanc$Dx.Cancer <- as.logical(cervCanc$Dx.Cancer)
+cervCanc$Dx.CIN <- as.logical(cervCanc$Dx.CIN)
+cervCanc$Dx.HPV <- as.logical(cervCanc$Dx.HPV)
+cervCanc$Dx <- as.logical(cervCanc$Dx)
+cervCanc$Hinselmann <- as.logical(cervCanc$Hinselmann)
+cervCanc$Schiller <- as.logical(cervCanc$Schiller)
+cervCanc$Citology <- as.logical(cervCanc$Citology)
+cervCanc$Biopsy <- as.logical(cervCanc$Biopsy)
+```
+
+Verifying the types.
+
+```{r}
+str(cervCanc)
+head(cervCanc)
+```
+
+Checking to see if these columns have entries besides NA in them, as they appear to only have NA in the head of the data set
+
+```{R}
+sum(!is.na(cervCanc[,28]))
+sum(!is.na(cervCanc[,27]))
+```
+
+Viewing the table in excel to verify that everything looks correct.
+
+```{r}
+View(cervCanc)
+```
+
+Data types appear correct, if a value has an entry with a real number in it at some point, the column is correctly set to num, and the ones with only integers are set to integers. If it has NA, it should be NA.
+
+```{R}
+write.table(cervCanc,file="C:\\Users\\Mike\\Documents\\DAT511\\HW5\\cervical_cancer_formatted.csv",sep=",",row.names=TRUE,col.names=TRUE)
+```

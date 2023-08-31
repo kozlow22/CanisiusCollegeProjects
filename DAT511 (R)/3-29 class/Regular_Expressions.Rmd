@@ -1,0 +1,168 @@
+---
+title: "Regular Expressions 1"
+author: "HDS"
+date: "June 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Regular Expressions 1
+
+Section 5.2 of der Loo and de Jonge
+
+Regular expressions are a powerful set of tools for searching text for patterns
+
+This is fundamentally a matching tool
+
+We will look at some different versions of the grep command (Global search a Regular Expression and Print- grep)
+
+
+grepl returns TRUE if the string contains the pattern
+
+(a|b)c*     1 a or b followed by zero or more cs
+
+```{r}
+grepl("(a|b)c*",c( "abba","cab","ad","bd","xy","a","acccccc","dccc"))
+```
+
+In this example, does the c really do anything?
+```{r}
+grepl("(a|b)",c( "abba","cab","ad","bd","xy","a","ac"))
+```
+Nope, it's not helping
+
+How could we use an expression like c*?  it might help if we are looking for both a and b
+
+```{R}
+grepl("ac*b",c("ab","acccccb","axcb"))
+```
+
+
+
+cc* means one c followed by 0 or more cs
+```{r}
+grepl("(a|b)cc*",c( "abba","cab","ad","bd","xy","a","ac"))
+```
+
+
+Now we get different results, as at least one c must be present
+
+grepl returns a vector of true and false values, one per string searched,
+
+grep returns a vector of the indices of the string array that contain the target string
+
+```{r}
+grep("(a|b)c*",c( "abba","cab","ad","bd","xy","a","ac"))
+```
+
+Working with a long sequence-this is an excerpt from a story by the Alfred Lord Dunsany, an Irish fantasy writer circa 1900- I got the quote from the Gutenberg project
+
+Welleran is the hero of this story (sort of), called the Sword of Welleran
+
+In the paragraph below, which lines does Welleran's name appear?
+
+```{r}
+dtext=c("But Welleran drifted over the roofs of the city till he came to the","form of Rold lying fast asleep.  Now Rold was grown strong and was","eighteen years of age, and he was fair of hair and tall like",
+"Welleran, and the soul of Welleran hovered over him and went into",
+"his dreams as a butterfly flits through trellis-work into a garden",
+"of flowers, and the soul of Welleran said to Rold in his dreams:",
+"\'Thou wouldst go and see again the sword of Welleran, the great",
+"curved sword of Welleran.  Thou wouldst go and look at it in the",
+"night with the moonlight shining upon it.\'")
+
+grep("Welleran",dtext)
+```
+
+We could get a count of the number of times his name appearrs by summing grepl
+
+```{r}
+sum(grepl("Welleran",dtext))
+```
+We could figure out how many sentences are in this excerpt by counting the periods
+
+Remember that period means a wild card, any letter, so to search for a period, we us [.]
+
+```{r}
+sum(grepl("[.]",dtext))
+```
+
+regexpr gives us a lot more info, the value returned is the location of the first appearence of the  pattern within the text string, a minus 1 means the pattern was not found 
+
+```{r}
+regexpr("(a|b)cc*",c( "trackpad","lumberman","crabcakes","acac"))
+```
+```{r}
+regexpr("Welleran",dtext)
+```
+
+
+gregexpr acts much like regexpr, except it shows the location of each occurence of the pattern in the string  (I think the g here stands for global)
+
+```{r}
+gregexpr("(a|b)cc*",c( "trackpad","lumberman","crabcakes","acac"))
+```
+Here is a more useful application of regexpr
+
+```{r}
+regexpr("(a|b)cc*",c( "I do wish John had brought more crabcakes"))
+```
+sub and gsub make substitutions into the string
+
+```{r}
+sub(pattern="(a|b)cc*",replacement="X",c( "trackpad","lumberman","crabcakes","acac"))
+gsub(pattern="(a|b)cc*",replacement="X",c( "trackpad","lumberman","crabcakes","acac"))
+```
+working with character ranges
+
+. -> any single character
+
+(a|b).c   (a or b) followed by one character, then a c
+```{r}
+grepl(pattern="(a|b).c",c( "trackpad","lumberman","crabcakes","acac"))
+```
+the term $ means the end of the string
+```{r}
+grepl(pattern="(a|b)c$",c( "trackpad","lumberman","crabcakes","acac"))
+```
+the term ^ indicates the beginning of the string
+
+```{r}
+grepl(pattern="^c",c( "trackpad","lumberman","crabcakes","acac"))
+```
+
+There are some pre-defined ranges, such as digit, alpha, space, etc
+```{r}
+grepl(pattern="[[:digit:]]",c( "trackpad","3 lumberman","crabcakes","acac","F-111"))
+```
+```{r}
+grepl(pattern="[[:space:]]",c( "trackpad","lumberman","crab-cakes","ac   ac","F-111"))
+```
+```{r}
+grepl(pattern="[[:punct:]]",c( "trackpad","lumberman.","crabcakes","acac","F-111"))
+```
+Extended repetition--these are extended regular expressions (ERE)
+
+c* - zero or more c
+c? zero or 1 c
++ one or more
+{m} exactly m
+{m,} m or more
+{m,n} range of m to n
+
+Checking for a valid phone number   xxx-xxx-xxxx
+```{r}
+grepl("[[:digit:]]{3}-[[:digit:]]{3}-[[:digit:]]{4}",c("888-2587","716-888-2587","21-212-2112"))
+
+```
+How about checking for a valid date entry?
+```{r}
+grepl("[[:digit:]]{1,2}/[[:digit:]]{1,2}/[[:digit:]]{4}",c("1/2/1956","10/11/2012","3/541/1980","2-4-1967","8/8/17"))
+```
+
+
+

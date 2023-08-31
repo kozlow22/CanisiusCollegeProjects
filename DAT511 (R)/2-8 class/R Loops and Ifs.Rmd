@@ -1,0 +1,132 @@
+---
+title: "R Notebook"
+output: html_notebook
+author: "Mike Kozlowski"
+---
+
+##R Loops and Control Code
+
+R has the standard if operation to make decisions,
+
+if the test condition is true, then the block of code delimited by the curly brackets {} is executed
+
+```{r}
+
+x=5
+
+if(x<6)
+{
+  print("X was less than 6")
+  cat("The value of X squared is :",x^2, sep=" ")
+}
+
+```
+
+We can add an else statement, which runs if the if statement is not true
+
+```{r}
+x=7
+
+if(x<6)
+{
+  print("X was less than 6")
+  cat("The value of X squared is :",x^2, sep=" ")
+}else
+{
+  print("X was greater than 6")
+  cat("The value of X cubed is :",x^2, sep=" ")
+}
+```
+Note that R is fussy about the positioning of else, it must be adjacent to the bracking } closing the if
+
+There is an else if option as well
+
+```{r}
+x=12
+
+if(x<6)
+{
+  print("X was less than 6")
+  cat("The value of X squared is :",x^2, sep=" ")
+}else if (x<10){
+  print("X was greater than 6 but less than 10")
+  cat("The value of X cubed is :",x^3, sep=" ")
+}else
+{
+  print("X was greater than 10")
+  cat("The value of square root X is :",x^0.5, sep=" ")
+}
+
+```
+
+##For loops 
+
+-are always iterations through a list of values
+
+cat()- a print and concatenate function
+
+note the use of the command code "\n",  which is a newline character
+
+```{r}
+x=c(1,2,5,11,13)
+for (i in x)
+{
+  cat("I is:",i, "I squared is:",i^2,"\n", sep=" ")
+}
+
+```
+
+We can compute values such as N-factorial with a loop,   this is a classic programming task
+
+```{r}
+N=5
+Nfact=1
+for (x in 1:N)
+{
+  Nfact=Nfact*x
+}
+print(Nfact)
+```
+
+But in R, we can often carry out tasks such as this one using built-in functions
+
+```{r}
+N=5
+Nfact=prod(seq(1,N))
+Nfact
+```
+There is also a while loop available,  it continues while the condition is true
+
+What power of 2 is greater than 3716?
+
+```{r}
+N=0
+v=2^N
+target=3716
+while(v<target)
+{
+  N=N+1
+  v=2^N
+}
+Nlast=N-1
+vlast=2^Nlast
+cat("last valid N was ",Nlast," 2^N is ",vlast,"\n",sep=" ")
+
+```
+
+One interesting use of loops is with strings,
+
+Here I will get the directory listing  of the current direction, and print it out
+
+```{r}
+# show the current working directory, using get working directory
+cat(getwd(),"\n")
+# get the directory output and store it in temp
+temp=dir()
+# print each file name in the directory
+for (fname in temp)
+{
+  cat(fname,"\n")
+}
+
+```

@@ -1,0 +1,87 @@
+---
+title: "Midterm Exam"
+author: "Mike Kozlowski"
+date: "2023-04-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("ggplot2")
+require("reshape2")
+require("forcats")
+require("data.table")
+```
+
+Load the data file "IBM_HR-Employee-Attrition.csv"
+
+Generate the summary and determine if there are NAs in the data set.
+
+Create a bar plot that shows the continuous variables DailyRate, MonthlyIncome, MonthlyRate on a single plot,  the y-axis should be log transformed.
+
+Hint: There is an example of this is the powerpoints, early in the semester, I think, or a google search on "r plot multiple boxplot in one graph.  You will also need to do some digging in ggplot to figure out how to log transform the y axis
+
+```{r}
+ibm_infile="F:\\Chrome Downloads\\IBM_HR-Employee-Attrition.csv"
+ibmdata=read.csv(ibm_infile,stringsAsFactors=TRUE)
+summary(ibmdata)
+sum(is.na(ibmdata))
+
+#There are no values set as NA in the data set based on the results of the summary and the sum of is.na being 0.
+```
+```{r}
+ibmdata_long <- melt(ibmdata, measure.vars = c("DailyRate", "MonthlyIncome", "MonthlyRate"))
+ggplot(ibmdata_long, aes(x = variable, y = value)) + geom_boxplot() + scale_y_log10()
+```
+
+Load the mtcars dataset (one of the built-in data sets).
+
+  a) Create a table that shows the mean hp of cars within each category of cylinders
+  b) Create a second table that shows for each combination of category of cylinders and type of transmission, the mean quarter-mile time.
+
+Hint: there is a function called fct_cross in tidyverse that may help here with part b- do look it up!
+
+```{r}
+data(mtcars)
+
+sapply(split(mtcars$hp, mtcars$cyl), mean)
+aggregate(qsec~am*cyl, data=mtcars, mean)
+
+#I was unable to figure out how to get fct_cross working, so I had to take a different approach to building the second table.
+```
+
+Create an S3 structure that will hold the following information about a fish and chips shop:
+  -the name
+  -the owner
+  -A list of the number of fish sold per month for the last 12 months
+  -The pounds of potatoes used per month for the last 12 months
+  -The income per month
+
+Create a member function called plot(x) that will plot a graph of fish or potatoes over time (the last 12 months) depending on whether x is "fish" or "potatoes"
+
+Pick values at random for the fish and potatoes entry or use rnorm() to fill them in
+
+```{r}
+mys3 <- list(name = "Long John Silver's", owner="Bob", fishMonthly=300, potatoesMonthly=200, incomeMonthly=10000)
+class(mys3)<-"fishNChips"
+
+plot.fishNChips <- function(x)
+{
+  if(x == "fish")
+  {
+    plot(x=1:nrow(mys3), y=mys3$fishMonthly)
+  } else if (x == "potatoes") {
+    plot(x=1:nrow(mys3), y=mys3$potatoeshMonthly)
+  }
+}
+#plot.fishNChips("fish")
+
+#I'm not really sure how to proceed here in getting this to function
+```
+
+Using the built-in data set "Tooth Growth", produce a graph or table that shows how the growth of pig's teeth (len) is influenced by the dose of a drug (dose) and the way the drug was delivered (sup).   Produce a single plot or table that clearly shows the impact of these two factors
+
+```{r}
+data("ToothGrowth")
+ggplot(ToothGrowth, aes(x = supp, y = len)) + geom_boxplot(aes(fill = supp))+facet_grid(. ~ dose)
+```

@@ -1,0 +1,150 @@
+---
+title: "Set Operators in R"
+author: "HDS, Mike Kozlowski"
+date: "6/28/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Set Operations and Formulas in R
+
+
+## Set Operations in R
+
+HDS,  no coverage in van der Loo and de Jonge
+
+R has a number of operations on sets, where the sets are simply vector
+If x and y are vectors then we have set operations
+
+union(x,y)
+intersect(x,y)  - intersection of x and y
+
+setdiff(x,y)
+setequal(x,y)
+
+We can also check to see if values (v) are in a given set x
+is.element(v,x)   or v %in% x
+
+```{r}
+x=c(1,2,3,4,5)
+y=seq(from=2,to=10, by=2)
+print(x)
+print(y)
+```
+
+```{r}
+union(x,y)
+```
+
+
+```{r}
+intersect(x,y)
+```
+Here is set difference- It returns the items in the first argument that are not in the second argument- note that it is asymmetric
+```{r}
+setdiff(x,y)
+setdiff(y,x)
+```
+Compare two entire sets
+
+```{r}
+setequal(x,y)
+```
+We can check to see if an element (6 in this case) is an element of a set x or y
+
+```{r}
+is.element(6,x)
+is.element(6,y)
+6 %in% y
+
+```
+
+###A Few other set-like utility functions
+
+Extracting the unique elements from a vector (or rows from a matrix or data frame)
+
+```{r}
+z=c(1,2,1,1,2,3,1,2,2,2)
+unique(z)
+```
+We can find out the indices of the duplicated entries- the first version is not marked as duplicate
+```{r}
+duplicated(z)
+```
+
+Using Set Operations on the Buffalo Tax Assessment set
+
+Get the data first
+
+```{r}
+mydata=read.csv("C:\\Users\\Mike\\Documents\\DAT511\\2-1 class\\2020-2021_Assessment_Roll.csv",header=TRUE)
+summary(mydata)
+```
+
+What police districts are there in this data set?
+```{r}
+unique(mydata$POLICE.DISTRICT)
+
+```
+
+How many items are on the role
+
+```{r}
+dim(mydata)
+```
+How many different people own property in Buffalo
+
+Owner1 is currently a factor, to use unique on it we must convert it to a character string
+```{r}
+temp_owner=as.character(mydata$OWNER1)
+length(unique(temp_owner))
+```
+So 66,121 distinct owners of 94105 properties in Buffalo
+
+What neighborhoods are in Buffalo?
+
+```{r}
+unique(as.character(mydata$NEIGHBORHOOD))
+```
+
+Does anyone who owns property in Hamlin Park also own property in the First Ward?
+
+first get the lists of owners in each neighborhood
+
+convert each to a character string form
+
+```{r}
+owners_HP=mydata$OWNER1[mydata$NEIGHBORHOOD=="Hamlin Park" ]
+owners_HP=as.character(owners_HP)
+
+owners_FW=mydata$OWNER1[mydata$NEIGHBORHOOD=="First Ward" ]
+owners_FW=as.character(owners_FW)
+
+owners_both=intersect(owners_HP, owners_FW)
+
+owners_both
+
+```
+
+
+##writing formulas
+
+Suppose I think the property values should depend on the living area, and I want to model that
+
+```{r}
+
+property_model=lm(TOTAL.VALUE~TOTAL.LIVING.AREA, data=mydata)
+summary(property_model)
+```
+Hmm, interesting, but the R-squared is really low, .001074
+
+Let's try a more complex model
+
+```{r}
+mydata$OVERALL.CONDITION=as.factor(mydata$OVERALL.CONDITION)
+property_model=glm(TOTAL.VALUE~TOTAL.LIVING.AREA+FRONT*DEPTH+COUNCIL.DISTRICT+X..OF.KITCHENS+OVERALL.CONDITION, data=mydata)
+summary(property_model)
+anova(property_model,test="F")
+```

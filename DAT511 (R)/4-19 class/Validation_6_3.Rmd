@@ -1,0 +1,172 @@
+---
+title: "Validation, Part 3"
+author: "HDS"
+date: "June 18, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Creating Validators of various types
+
+"In Record" Validation using a rules based, systematic approach
+
+Comparisons of elements of a single record
+
+UtuX=sssm or ssss  category approaches- comparisons of single individuals only
+
+These are the best understood validation rules 
+
+-allow for immediate localization of the error (u)
+
+Types
+
+  -> linear equalities and inequalities
+          single X
+            age>0                                 
+            height>20 inches
+          multiple x
+            staff_cost/number_of_staff<100000
+            
+  ->conditional rules on categorical data,    multiple X
+            if(sex="Male") then (pregnant="FALSE")
+            if(type="Cat") then (obediant=NA)
+  
+  
+  ->conditional rules with one or more linear inequalities,  multiple X
+            if(type="Cat") then (age<30)
+            if(in_debt="No") then (net_worth>=0)
+            
+Here are linear equality and inequality tests
+
+here we define a validator object that holds the rules and a separate function to carry out the "confronation"
+of the data with the rules
+
+Separating the rules from the confrontation makes it easier to document the tests used and maintain them over time.
+
+```{r}
+require('validate')
+data('retailers')
+
+# set up the validator, with two tests in it
+
+rv<-validator(
+  turnover+other.rev==total.rev,
+  other.rev>turnover
+)
+
+# carry out the confrontation of the data with the rules
+
+cf<-confront(retailers, rv)
+summary(cf)
+```
+
+Here is a conditional rule on categorical data
+
+```{r}
+tdata=data.frame(sex=c("m","m","m","f","f"),pregnant=c(FALSE,FALSE,TRUE,FALSE,TRUE))
+
+pv<-validator(
+  if(sex=="m") pregnant==FALSE
+)
+cf=confront(tdata,pv)
+summary(cf)
+```
+
+combination of linear and a categorical test
+```{r}
+tdata=data.frame(species=c("Cat","Cat","Dog","Dog","Cat"), weight=c(11.2, 7.2,45, 78, 81), age=c(11,3,7,25,21))
+
+# weights of dogs and cats in pounds
+
+v<-validator(
+  ch_weight=if(species=="Cat") (weight<35),
+  ch_age=if(species=="Dog") (age<18)
+)
+cf=confront(tdata,v)
+summary(cf)
+```
+
+Checking cross-record validation rules
+
+Multiple records used,  but not time dependent
+
+UtuX=ssmm
+
+or
+
+UtuX=ssms
+
+These approaches compare the value of one cell (ssms) or several cells (ssmm) on one row to some function(s) of one or more other rows (this is a different u)
+
+comparisons of an overal property of all the data  (Note-it would be hard to localize this error!)
+
+```{r}
+data(women)
+str(women)
+
+# the rule we check here is that height and weight have a positive correlation
+
+v<-validator(HT_WT_Cov=cov(height,weight)>0)
+cf=confront(women,v)
+summary(cf)
+```
+
+#6.5.11 Checking Functional Dependencies
+
+Given the values of one or more variables, we can determine the rest of a the set
+
+city, street-> zipcode
+zipcode->city, street
+
+social security number-> Name, age, city of birth, birth date
+(probably the reverse as well...)
+
+I have used the arrow -> to mean functional dependency,  we use the ~ to imply the function in R
+
+Note that we don't have to know the dependency to use this test, only that there is such a dependency
+
+In other words, we claim that the name of the animal can be uniquely determined by the idcode value,  and we can see if
+this relationship holds true or not
+
+This is really simple example for animal names and IDS, more complex dependencies would be more interesting
+
+```{r}
+Vet_data=data.frame( animal_name=c("Muffy","Binky","Louie","Muffy","Binky"),
+                     visit_year=c(1980,1980, 1982,1983,1981),
+                     idcode=c(156,187,190,156,211))
+vv<-validator(animal_name~idcode)
+cf=confront(Vet_data,vv)
+summary(cf)
+```
+
+#6.5.12 Cross-Dataset Validation
+
+Comparisons of the results of one data set to another data set  (multiple U)
+
+These might be generalized statements (the average height of American Women should be within 10% of the mean height of Dutch women during the same year) though be careful here, the Dutch are some of the tallest people on average.
+
+It might be something more individual as well, if we had the same individuals in two data sets (suppose one data set was financial info and the 2nd one was marketing preferences)
+
+```{r}
+dutch_women<-data.frame(heightCM=c(176.2,175,177.4))
+
+
+
+v<-validator(
+   inch:=1/2.54,
+   us_mean:=mean(height),
+   upplim=us_mean<1.1*mean(ref$heightCM)*inch,
+   lowlim=us_mean>0.9*mean(ref$heightCM)/2.54
+ )
+
+
+
+cf=confront(women,v,ref=dutch_women)
+summary(cf)
+```
+
+
+

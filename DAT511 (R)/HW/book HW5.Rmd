@@ -1,0 +1,51 @@
+---
+title: "Homework 5"
+author: "Mike Kozlowski"
+date: "2023-02-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+van der Loo & de Jonge exercises for HW5
+
+4.4.1:
+
+Here, I tried several different ways of trying to do this, but ended up creating a loop to iterate over a vector based on the index of the vector to either add 2% or subtract 1% depending on if the index of the vector was odd or even. This does not return the expected results in terms of the output, and I'm not sure why. I likely have something messed up in the creation of my time-series object, but I can't figure it out. It seems to be working properly, but I'm not sure why the initial value for January 1990 is 100.98. Also, this would have been simpler using a for loop, but the for loop did not operate as expected. The index in "for (i in data)" never incremented. I printed out i as it looped and i remained 0. So, I have no idea why that would be, but because of that, I was unable to use i to do a similar operation within a simpler for loop.
+
+```{r}
+data <- rep(0, 120)
+entry <- 100
+count <- 121
+runner <- 0
+
+while (count >= 0) {
+  if (runner %% 2 == 0) {
+    entry <- entry * 1.02
+    data[runner] <- entry
+    runner <- runner + 1
+    count <- count - 1
+  } else {
+    entry <- entry - (entry * 0.01)
+    data[runner] <- entry
+    runner <- runner + 1
+    count <- count - 1
+  }
+}
+
+nineties <- ts(data = data, start = 1990, end = 2000, frequency = 12)
+nineties
+```
+
+4.4.2:
+
+Took me quite a bit of research to figure out how to get these simple commands up and running.
+
+```{r}
+plot(ldeaths, xlab = "Year", ylab = "Deaths")
+mymts <- ts(ts.union(fdeaths, mdeaths), start = 1974, end = c(1979, 12), frequency = 12)
+class(mymts)
+mymts
+```

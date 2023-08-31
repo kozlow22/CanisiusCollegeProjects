@@ -1,0 +1,244 @@
+---
+title: "R Notebook"
+output: html_notebook
+author: "Mike Kozlowski"
+---
+
+# Dplyr and sqldf Examples
+
+These are both alternative ways of filtering or searching r dataframes
+
+Dplyr is a unique set of tools
+
+sqldf is SQL for data frames,  so you can use SQL commands on an r dataframe
+
+#Data Pliers
+
+Data Pliers (dplyr) is a R package for manipulating data.
+
+It was largely written by Hadly Wickham,  who was head of the organization that produced
+RStudio and GGPlot2
+
+GGplot2 was based on a "grammar of graphics",  which is to say, a form of expressing ideas
+about how graphic visualizations of data are stated and formed.
+
+dplyr is based on a "grammar of data manipulation"
+
+There are "native" ways in R to do all the manipulation tasks that are carried out
+in dplyr.    The "Native R" approaches are very similar to "Native Python" approaches.  The syntax is a bit different, but the general ideas are the same and they work pretty much the
+same way.   The python Pandas package works much like Native R.
+
+I think there are some advantages to dplyr, it does some things very well.   In other cases, I find "Native R" to work better.
+
+Personally,   I do not use dplyr.   It takes time to learn, and it is R only.    The native R and Python approaches work just fine.
+
+But, in some subcultures,  dplyr is very popular, so you need to have some exposure to it.
+
+If you like it, go ahead and use it.
+
+# Tidyverse
+
+Hadley Wickham has had a bunch of ideas about processing data,  a lot of them are very
+interesting (as is dplyrs).    They are packaged up into a library called tidyverse, so you can just download them all at once.
+
+See
+
+https://dplyr.tidyverse.org/
+
+# Basic Operations in dplyr
+---------------------------------------
+
+mutate() adds new variables that are functions of existing variables
+select() picks variables based on their names.
+filter() picks cases based on their values.
+summarise() reduces multiple values down to a single summary.
+arrange() changes the ordering of the rows.
+
+```{R}
+require("dplyr")
+data(starwars)
+head(starwars)
+```
+
+This example data set is in the form of a tibble.   A tibble is like a data frame
+except that it is stricter in how it handles data, so it sort of a more reliable dataframe
+
+-you cannot change variable names or data types of columns
+-it creates errors if you search on a variable that does not exist
+-it does not allow recycling of variables
+
+# dplyr filtering
+
+```{R}
+starwars %>% filter(species=="Droid")
+```
+
+The tibble starwars was pipelined into a filter operation,  that selected for species equal to Droid.    The pipeline symbol is %>% and it passes a tibble through a series of operations
+in dplyr
+
+The pipeline operator idea is really a big part of unix and linux,  and you may see it later
+in python for some more advanced operations.   You can link togehter a bunch of operations with a pipeline
+
+The native R version of this filter operation,  just for comparison
+
+```{R}
+starwars[starwars$species=="Droid",]
+```
+We can pipeline two filters
+
+```{r}
+starwars%>%filter(species=="Droid")%>%filter(height>100)
+```
+
+In base R
+
+```{R}
+starwars[(starwars$species=="Droid")&(starwars$height>100),]
+```
+
+#dplyr select
+
+filters variables by name
+
+This allows some interesting combinations
+
+```{R}
+starwars%>%select(name,ends_with("color"))
+```
+In base R we would do this
+
+```{r}
+ctargets=c("name","hair_color","skin_color","eye_color")
+starwars[,ctargets]
+
+```
+
+#dplyr mutate
+
+This adds a new, computed column to the data
+
+Note this set of commands creates bmi and then selects a few columns
+
+```{r}
+starwars %>% 
+  mutate(name, bmi = mass / ((height / 100)  ^ 2)) %>%
+  select(name:mass, bmi)
+```
+
+We cannot simply add a column to a tibble,  we have use mutate
+
+We can add columns to a dataframe
+
+```{R}
+df_starwars<-as.data.frame(starwars)
+df_starwars["bmi"]<-df_starwars$mass/(df_starwars$height/100)^2
+df_starwars[,c("name","height","mass","bmi"),]
+
+```
+
+#arrange()
+
+sort or order data
+
+This has the ability to use complicated orderings that are hard to do in
+base R
+
+This is a simple calculation
+
+```{R}
+starwars %>% 
+  arrange(desc(mass))
+```
+
+```{R}
+# create an ordering index based on mass
+temp=order(df_starwars$mass,decreasing=TRUE)
+
+df_starwars[temp,]
+```
+
+One thing that dplyr can do that is tough in base R is a compound ordering, such
+as we see in Excel
+
+Remember this if you need it!
+
+```{R}
+starwars %>% 
+  arrange(species,desc(mass))
+```
+
+# summarise and group_by
+
+Here are two operations working together
+
+This is much like a tapply operation in base R
+
+using group_by to group by a factor
+
+then summarise calculates a couple of variables for us
+n() is a count operation within summarise,  mean is a the standard mean function
+
+We can set up a number of different operations within summarise
+
+This would be a bit tough to do in base r.
+
+Tapply can group data, but it only allows one function,  we could call tapply several times
+and merge the data
+
+```{R}
+starwars %>%
+  group_by(species) %>%
+  summarise(
+    n = n(),
+    mass = mean(mass, na.rm = TRUE)
+  ) %>%
+  filter(
+    n > 1,
+    mass > 50
+  )
+```
+
+Here this is in base R
+
+Tapply can group data, but it only allows one function,  we could call tapply several times
+and merge the data
+
+
+
+```{R}
+x=tapply(df_starwars$species,df_starwars$species,"length")
+y=tapply(df_starwars$mass,df_starwars$species,"mean")
+data.frame("n"=x,"mean mass"=y)
+```
+
+# sqldf
+
+This package allows you to use SQL queries on an R dataframe.
+
+See 
+
+https://cran.r-project.org/web/packages/sqldf/sqldf.pdf
+
+If you are really good at SQL,  this allows you to use your SQL chops in r
+
+The installation was a bit cranky,  use this sequence of installs
+
+install.packages("gsubfn")
+install.packages("RSQLite")
+install.packages("sqldf",type="binary")
+
+```{R}
+require('sqldf')
+```
+With this in place, we can run SQL commands on an R dataframe
+
+sqldf is not tolerant of NAs,   if the df has an NA,  it will crash
+
+the df_starwars used above has NAs,  we will use mtcars as an example
+
+```{R}
+sqldf("Select * from mtcars ")
+```
+```{r}
+sqldf("Select *  from mtcars where mpg>=30")
+```

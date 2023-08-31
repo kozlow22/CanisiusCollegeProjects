@@ -1,0 +1,35 @@
+---
+title: "Week 3 HW 1"
+author: "Mike Kozlowski"
+date: "2023-02-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+a.) Take in a single vector of values, say x=seq(1,10,1),  and return a data frame with three columns, x, x^2 and x^3
+```{R}
+x = seq(1,10,1)
+frame = data.frame(x, x^2, x^3)
+frame
+```
+
+b.) Take in an investment value V and an annual interest rate R, and compute the value of the investment 1 year from now.
+```{R}
+v = 50000
+r = 0.03
+time = 1
+
+interest = (v * r) * time
+total = interest + v
+total
+```
+
+c.)  Take in a vector of values, and return only the values greater than 5.
+```{R}
+x
+greaterfive = which(x > 5)
+greaterfive
+```

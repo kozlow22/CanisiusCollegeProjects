@@ -1,0 +1,14 @@
+# this is a yaml format file of modification rules from van de Loo and de Jonge
+rules:
+-
+ expr: | 
+   if (x>6) y<-"c"
+ name: BigX
+ label: Large X fix
+ description: If we have a big x value, it must be group c
+-
+ expr: |
+   if (y=="c") x<-11
+ name: OverRange
+ label: Group C value out of range
+ description:  Even the units in group C are 11 or less

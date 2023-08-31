@@ -1,0 +1,234 @@
+---
+title: "Validation_6_0"
+author: "HDS"
+date: "June 15, 2018"
+output: html_document
+---
+updated 4/18/2023
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is a set of examples on Data Validation, using van der Loo and de Jonge, chapter 6 on validation
+
+The chapter focuses on a sophisticated tool created by van der Loo and de Jonge for 
+data validation and checking.  It is similar in intent to some commercial tools used for data validation in
+large institutions.
+
+We will use the example file "retailers" that came with the validate package as an example
+
+see
+
+https://cran.r-project.org/web/packages/validate/validate.pdf
+
+
+We will immediately use str() to see what the data.frame contains
+
+```{r}
+require("validate")
+data(retailers)
+str(retailers)
+```
+
+Looking up the dataset in the manual (see URL above)
+
+incl.prob-probability of inclusion in the sample
+
+Turnover- this is revenue due to sales
+
+vat-The value of turnover reported for the European Value Added Tax
+
+size- three categories of size,   sc0 means unknown
+
+
+One of the cardinal rules of working with any data set, is always do some simple plots and look at the data
+
+```{r}
+boxplot(retailers)
+```
+
+Okay, this boxplot isn't very helpful, as the ranges on the different variables are so different.
+
+We need individual box plot for each variable
+
+We'll do this using ggplot2 to generate the plots, and cowplot to arrange them on a page
+
+we have a factor size that describes the size of each store in this chain of european grocery stores
+
+```{r}
+require(ggplot2)
+require(cowplot)
+
+staffPlot=ggplot(retailers,aes(size,staff))+geom_boxplot();
+incl.probPlot=ggplot(retailers,aes(size,incl.prob))+geom_boxplot();
+turnoverPlot=ggplot(retailers,aes(size,turnover))+geom_boxplot();
+other.revPlot=ggplot(retailers,aes(size,other.rev))+geom_boxplot();
+total.revPlot=ggplot(retailers,aes(size,total.rev))+geom_boxplot();
+staff.costsPlot=ggplot(retailers,aes(size,staff.costs))+geom_boxplot();
+total.costsPlot=ggplot(retailers,aes(size,total.costs))+geom_boxplot();
+profitPlot=ggplot(retailers,aes(size,profit))+geom_boxplot();
+vatPlot=ggplot(retailers,aes(size,vat))+geom_boxplot();
+plot_grid(staffPlot,incl.probPlot,turnoverPlot,other.revPlot,total.revPlot,staff.costsPlot,total.costsPlot,profitPlot,vatPlot)
+```
+Based on these results, the data looks pretty dirty  Pretty much every variable has some pretty extreme outliers
+
+Outliers may be rare events or they may be data errors of various types- it's always a bit of a problem to decide which they really are, and what to do about them, the validate tool is one approach
+
+With the wide range in these data sets, we can't seem about the extent of variation within each set, what we need here is a log axis on the y-scale to make it easier to see the smaller vartions- this should be easy to do
+
+Under ggplot2's grammar of graphics, we just add a scale modifier to each graph- cut and paste!
+
+```{r}
+
+staffPlot=ggplot(retailers,aes(size,staff))+geom_boxplot()+scale_y_continuous(trans="log10");
+incl.probPlot=ggplot(retailers,aes(size,incl.prob))+geom_boxplot()+scale_y_continuous(trans="log10");
+turnoverPlot=ggplot(retailers,aes(size,turnover))+geom_boxplot()+scale_y_continuous(trans="log10");
+other.revPlot=ggplot(retailers,aes(size,other.rev))+geom_boxplot()+scale_y_continuous(trans="log10");
+total.revPlot=ggplot(retailers,aes(size,total.rev))+geom_boxplot()+scale_y_continuous(trans="log10");
+staff.costsPlot=ggplot(retailers,aes(size,staff.costs))+geom_boxplot()+scale_y_continuous(trans="log10");
+total.costsPlot=ggplot(retailers,aes(size,total.costs))+geom_boxplot()+scale_y_continuous(trans="log10");
+profitPlot=ggplot(retailers,aes(size,profit))+geom_boxplot()+scale_y_continuous(trans="log10");
+vatPlot=ggplot(retailers,aes(size,vat))+geom_boxplot()+scale_y_continuous(trans="log10");
+plot_grid(staffPlot,incl.probPlot,turnoverPlot,other.revPlot,total.revPlot,staff.costsPlot,total.costsPlot,profitPlot,vatPlot)
+```
+That's easier to see
+
+It really looks like there is no variation in incl.prob within each size class- so whatever this variable incl.prob is, it doesn't see to mean much beyond size class
+
+Let's look at just that plot
+```{r}
+plot(incl.probPlot)
+```
+# we can create all the biplots, just to get a quick look
+
+```{R,fig.width=12,fig.height=12}
+plot(retailers)
+```
+
+
+
+Yeah, no signs of any variation in incl.prob with size class, so we won't try to do much more with incl.prob
+
+#PCA- Principle Component Analysis
+
+This is one of my favorite exploratory data analysis (EDA) tools- it looks for axes that display the greatest amount of variation in the data
+
+Outlier show up as large deviations from the general patterns, so they are likely to be points of concern for us
+
+```{r}
+mypca=prcomp(~staff+turnover+other.rev+total.rev+staff.costs+profit+vat,data=retailers,scale=TRUE,na.action=na.omit)
+
+scores = as.data.frame(mypca$x)
+ggplot(data = scores, aes(x = PC1, y = PC2, label = rownames(scores))) +
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  geom_text(colour = "tomato", alpha = 0.8, size = 4) +
+  ggtitle("PCA plot of retailer data set, NA omit")
+
+dim(scores)
+```
+
+So on this plot, something is wrong with store # 36, it is wildly differnent from the other data points
+
+The dim(scores) call also indicates it is 17 x 7, so we have a lot of stores with one or more na values, since we omitted the nas in the PCA plot
+
+lets look at the NAs,  we will create a function to sum the Na values over a column
+```{r}
+f<-function(x){sum(is.na(x))}
+apply(retailers[,3:10],2,FUN=f)
+```
+
+Other.rev is really the issue here, lots of NAs there
+
+Let's omit other.rev and and try the pca again
+
+```{r}
+mypca2=prcomp(~staff+turnover+total.rev+staff.costs+profit+vat,data=retailers,scale=TRUE,na.action=na.omit)
+
+scores2 = as.data.frame(mypca2$x)
+ggplot(data = scores2, aes(x = PC1, y = PC2, label = rownames(scores2))) +
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  geom_text(colour = "tomato", alpha = 0.8, size = 4) +
+  ggtitle("PCA plot of retailer data set, other.revs omitted")
+
+dim(scores2)
+```
+That's better, we now have 36 entries out of 60 included in the PCA- still not great
+
+Why do 19,36 look like outliers?
+
+```{R}
+retailers[c(19,36),]
+```
+
+Okay,  19 has the largest profit by far
+
+36 has a really high other.rev,  and a huge staff cost
+
+
+#Data Summary
+```{R}
+summary(retailers)
+```
+
+
+
+
+
+#Automated Error Detection
+
+Let's look at the validate package a bit
+
+It works on a set of rules for the data, that is to say pre-determined statements we can make about the relationship of the variables within the data.
+
+Based on van der Loo and de Jonge's comments,
+
+    turnover>=0
+
+    staff.costs/staff is less than 50 (50,000 fl per employee)
+
+The check_that() function can look at these rules
+
+```{r}
+cf<-check_that(retailers,turnover>0,staff.costs/staff<50)
+summary(cf)
+```
+
+To see which lines in the data frame failed the validation check, we can look at values(cf)
+
+```{R}
+values(cf)
+```
+
+
+Let's expand this, to check to see if there are staff, that the staff.cost is no zero, and that the operation as a whole generates a profit, note that the conditions have now been named
+
+Note that we have a conditional statement in here (if there are staff then staff.costs>0)
+and a summary statement (mean profits >0)
+
+the conditional statement involves two variables,   staff and staff.costs, so if this condition is not met, we cannot be sure which is in error,  this is a u (item) multiple comparison
+
+The summary statement involves all the data, it is about the entire set, not a particular line
+
+```{r}
+cf<-check_that(retailers,
+               to=turnover>0,
+               sc=staff.costs/staff<50,
+               cd=if(staff>0) staff.costs>0,
+               mn=mean(profit,na.rm=TRUE)>0)
+summary(cf)
+
+```
+The variable cf is called a confrontation, and it contains information about the testing procedure
+
+We can also plot it
+
+
+```{r}
+barplot(cf[-4],main="Retailers")
+```

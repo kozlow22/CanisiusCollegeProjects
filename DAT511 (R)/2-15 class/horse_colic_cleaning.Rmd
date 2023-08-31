@@ -1,0 +1,224 @@
+---
+title: "Horse Colic Cleaning"
+author: "HDS"
+date: "July 27, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Horse Colic Cleaning
+
+We are now going to take our nicely formatted horse colic data and clean it, using the ideas from McCallum Chapter 1, plus a few more things
+
+McCallum Chapter 1 uses Perl, we'll translate all the operations to R
+
+Let's load the file, and check structure
+```{r}
+hColic=read.table(file.choose(), header=TRUE,sep=",")
+str(hColic)
+```
+Looking at a specific column, we can view it by column number or by name
+head() and tail() can show us the first or last five rows
+```{r}
+hColic[1:10,1]
+hColic$outcome[1:5]
+```
+##Viewing data
+
+First, we should look at the summary function
+```{r}
+summary(hColic)
+```
+##Lots of information here
+
+Looking mostly at the continuous variables, where the summary is most useful
+
+Surgery-more often 180 than not 119
+age- only a few young horses 24, so this is mostly about adults
+hospital number- this is a code, the range doesn't tell us anything
+rectal temperature- looks like a reasonable range,  no obvious outliers,  is this in degrees C? Canadian data
+                      Aveage horse rectal temp from Google is 37.2-38.3°C
+pulse-the mean is 71 the max is 184!  is that max real?  
+      google says average is 38 to 40 (resting), foals (70-120), yearlings(45-60) max can be over 180, rate above
+      80 in a non-exercising horse is "serious"  Which horse had the max pulse at 184???  We should look at this        with the boxplot*
+respiratory rate- mean 30, max 96- google says "The normal respiratory rate for adult horses is eight to 12   
+    breaths per minute. Newborn foals have respiratory rates that are 60 to 80 breaths per minute. Older foals   
+    have resting respiratory rates from 20 to 40 breaths per minute." - check with boxplot*
+n_r_ph- this looks odd,  neutral PH is 7,  1 is acidic,  14 is basic, so these are very acidic pH values. the text     file with the data says normal is in the 3 to 4 range.  There are a lot of nas here
+packed cell volume- mean 46 max 75, min 23, text says 30 to 50,  number rises due to dehydration
+total protein- min3.3 max 89 ave 24.46,  median=7.5- note the skew toward low values, long positive tail here
+                - normal values lie in the 6-7.5 (gms/dL) range, higher indicates dehydration boxplot*
+adom_tot_protein- again skew to low values with a few high ones boxplot*
+surgical_lesion- this didn't get coded correctly, dang!  this is a factor, not a numeric!  We can fix this here,    but we should go back to the data formatting script and repair this**
+```{r}
+hColic$surgical_lesion=factor(hColic$surgical_lesion,labels=c("Yes","No"))
+summary(hColic$surgical_lesion)
+```
+so 2/3 of the horses had surgical lesions
+
+lesion_2_site- only 7 out of 300 horses appear to have a 2nd lesion
+lesion_3_site- only 1 horse of 300 had a 3rd lesion
+    probably don't use lesion_3 information in models, create a code for lesion 2 present
+```{r}
+hColic$lesion_2_present<-factor((hColic$lesion_2_site!='none'))
+```
+
+We can generate some tables that will give us a sense of what the data looks like, as far as the sample counts and the like
+```{r}
+table(hColic$surgery,hColic$outcome)
+table(hColic$age,hColic$outcome)
+table(hColic$temperature_of_extremities,hColic$outcome)
+table(hColic$peripheral_pulse,hColic$outcome)
+table(hColic$mucous_membranes,hColic$outcome)
+```
+We could try some barplots
+
+Above I noted that I should check pulse, respiratory rate, and total protein- there is some age dependence expected on many of these
+```{r}
+require(ggplot2)
+ggplot(hColic,aes(surgery,rectal_temperature))+geom_boxplot()
+ggplot(hColic,aes(age,pulse))+geom_boxplot()
+ggplot(hColic,aes(age,respiratory_rate))+geom_boxplot()
+ggplot(hColic,aes(age,packed_cell_volume))+geom_boxplot()
+ggplot(hColic,aes(age,total_protein))+geom_boxplot()
+```
+The high pulses were mostly young horses- that looks okay, not necessarily an extreme outlier or error in the data
+
+We have a number of horses with high respiratory rate, not just one outlier
+
+Total protein looks  bit odd- some real skew there
+```{r}
+ggplot(hColic,aes(outcome,total_protein))+geom_boxplot()
+```
+Plot all continuous variable on one chart
+I refer to variables by number here, and omited the PH value, since there were so few
+
+```{r}
+cvars=c(4,5,6,19,20.22)
+library(reshape2)
+ggplot(melt(hColic[,cvars]), aes(variable, value)) + geom_boxplot()+scale_y_continuous(trans='log10')
+```
+
+
+Well, there's a surprise- really low total protein animals die, horse that get euthanized often have higher median total protein
+
+Now barplots of the factors- we need to create tables of the data to do this
+```{r}
+table(hColic$age)
+barplot(table(hColic$age))
+```
+
+Here are all the barplots of the factors
+```{r}
+barplot(table(hColic$surgery),main="surgery")
+barplot(table(hColic$temperature_of_extremities),main="Temp of Extremities")
+barplot(table(hColic$peripheral_pulse),main="peripheral pulse")
+barplot(table(hColic$mucous_membranes),main="mucous membranes")
+barplot(table(hColic$capillary_refill_time),main="capillary refill times")
+barplot(table(hColic$pain),main="pain",las=2)
+barplot(table(hColic$peristalsis),main="peristalsis")
+barplot(table(hColic$abdominal_distension),main="abd_distension")
+barplot(table(hColic$nasograstric_tube),main="nast_tube")
+barplot(table(hColic$nasogastric_reflux),main="naso_reflux")
+barplot(table(hColic$feces),main="feces")
+barplot(table(hColic$abdom_appearance),main="abdom_appearance")
+barplot(table(hColic$outcome),main="outcome")
+barplot(table(hColic$surgical_lesion),main="surgical_lesion")
+barplot(table(hColic$lesion_1_site),main="lesion 1 site",las=2)
+barplot(table(hColic$lesion_1_type),main="L1 type")
+barplot(table(hColic$lesion_1_subtype),main="L1 subtype")
+barplot(table(hColic$lesion_1_code),main="L1 code",las=2)
+```
+
+##Principal Components Analysis of Continuous Variables
+
+Principla Component Analysis is an exploratory tool to study the patterns of variation and covariation in the data-
+
+It produces PCA axes which are linear combinations (basis vector) for the data set, organized so that the greatest variance is along PC1, then along 2 and so on.  Zero on the PCA axis is an average specimen on that axis
+
+The coordinate of each specimen in the linear vector space is called it's PCA score, so the score is just the coordinate of the specimen in the PCA space.
+
+The PCA "loadings" are the components (or contributions) of the original variable scores along the PCA axes, so you can look at the axes and figure out what each one represents
+
+PCA has a lot of uses- it really helps display the relationships of specimens to one another relative to these dominant axes of variation in the data set.
+
+An outlier or severe data error shows up as an unusually large or small score on one or more PCA axes, since a single really deviant specimen will contribute strongly to the variance.  That makes PCA a useful tool to look for outliers and errors
+
+PCA may also show clustering of your data,  if we color code by age or outcome, we may be able to see some grouping or other structure in the data.  We might expect a patterns of negative diagnostic signals in very sick animals, for example- that's a strong pattern of variation
+
+PCA is an exploratory data analysis method, it shows you patterns, but there is no testing or explanation of the patterns.
+
+To run PCA, we cannot have any missing values in the continuous variables involved.  That's an issue, since many of our specimens are missing data.  We would like to use PCA to locate "outliers", specimens very different from the general pattern.  We have to omit all the specimens with missing data in the continuous variables, or use some form of imputation to estimate the missing values- for now, we will omit specimens,  we'll have to discuss imputation methods later...
+
+```{r}
+temp=hColic[,cvars]
+temp$index=1:300
+temp$age=hColic$age
+temp$outcome=hColic$outcome
+smtemp=na.omit(temp)
+z=princomp(smtemp[,1:5], cor = TRUE, scores = TRUE)
+summary(z)
+```
+```{r}
+print(z$loadings)
+```
+
+Set up to plot the scores
+scoretemp has the scores of the PCA analysis, plus the contents of smtemp-so age and  outcome,
+we can then plot the PCA scores coded by the outcome and age to see if there is segregation
+
+```{r}
+scoretemp=data.frame(cbind(z$scores,smtemp))
+ggplot(scoretemp,aes(Comp.1,Comp.2,colour=outcome,shape=age))+geom_point()
+```
+We can label the points- helps to find outliers
+```{r}
+ggplot(scoretemp,aes(Comp.1,Comp.2,colour=outcome))+geom_point()+geom_text(aes(label=index))
+```
+```{r}
+ggplot(scoretemp,aes(Comp.3,Comp.4,colour=outcome))+geom_point()+geom_text(aes(label=index))
+```
+
+```{r}
+ggplot(scoretemp,aes(Comp.1,Comp.5,colour=outcome))+geom_point()+geom_text(aes(label=index))
+```
+
+##Simple Imputation-
+
+The Hmisc package has some imputation tools- particularly the replacement of missing values by the mean,we'll use this to replace all the missing values with the mean of the variable
+
+This does not alter the mean, but it will reduce the variance- it is not the idea approach to imputation, but it will let us plot all our specimens, which should help in locating outliers
+
+install.packages("Hmisc")
+
+```{r}
+require("Hmisc")
+temp=hColic[,cvars]
+temp$index=1:300
+temp$age=hColic$age
+temp$outcome=hColic$outcome
+temp$rectal_temperature=impute(temp$rectal_temperature,mean)
+temp$pulse=impute(temp$pulse,mean)
+temp$respiratory_rate=impute(temp$respiratory_rate,mean)
+temp$packed_cell_volume=impute(temp$packed_cell_volume,mean)
+temp$total_protein=impute(temp$total_protein,mean)
+z2=princomp(temp[,1:5], cor = TRUE, scores = TRUE)
+summary(z2)
+```
+```{r}
+scoretemp2=data.frame(cbind(z2$scores,temp))
+ggplot(scoretemp2,aes(Comp.1,Comp.2,colour=outcome,shape=age))+geom_point()+geom_text(aes(label=index))
+```
+```{r}
+ggplot(scoretemp2,aes(Comp.3,Comp.4,colour=outcome))+geom_point()+geom_text(aes(label=index))
+```
+This is a bit interesting it looks like PC axes 3 is separating the data into two clear groups,  this is sort of evident in the PCA of the original data prior to the imputation- so axis 3 is telling us someting- it's not really about mortality, since that seems to be mixed, although, there is little red on the right hand side.
+
+```{r}
+ggplot(scoretemp2,aes(Comp.1,Comp.5,colour=outcome))+geom_point()+geom_text(aes(label=index))
+```
+
+I don't see anything that looks like a really extreme outlier here, although 4,40 and 256 look slightly odd

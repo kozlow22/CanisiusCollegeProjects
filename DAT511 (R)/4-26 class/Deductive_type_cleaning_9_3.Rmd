@@ -1,0 +1,190 @@
+---
+title: "Deductive Typo Correction, section 9_3"
+author: "HDS"
+date: "August 13, 2018"
+output: html_document
+---
+
+Updated 4/26/2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Deductive Typo Correction, section 9_3
+
+Deductive typo correction relies on a constraint,  a mathematical equality relationship among 3 or more variables.
+If the relationship is not valid in a given dataset, and we think that the error is due to a human typing or data entry error (which are all too common). 
+
+In such cases, we can convert the equations from numerical values into strings, and then determine if minor alterations in the strings will fix the problems.   We had talked about approximate string matching earlier, that allowed us to test whether or not minor typo fixes in strings would allow them to match,  that is the approach used here
+
+Example
+
+
+Here I set up a simple data set of three variables X1, X2, X3 with the constraint that X1+X2 should equal X3
+
+We will use a validator to 
+
+a.) Confront the data and determine if there are any errors
+
+b.) locate the error
+
+c.) Try to fix it, under a deductive model that this was a simple typing error
+
+```{R}
+
+require("validate")
+require("deductive")
+require("errorlocate")
+
+#set up the data
+dat<-data.frame(x1=c(123,123,122),x2=c(129,192,130),x3=c(252,252,252))
+print(dat)
+```
+
+If X1+X2 is supposed to equal X3,  there are errors in the 2nd entry, caused by minor typo alterations of the
+correct values
+
+
+```{r}
+#set up the validator and confront the data with the validation rules
+
+v<-validator(x1 + x2 == x3)
+cf<-confront(dat, v)
+summary(cf)
+head(cf)
+
+```
+
+
+
+```{r}
+#locate the error
+le<-locate_errors(dat,v)
+print(le)
+summary(le)
+values(le)
+```
+
+```{r}
+#assume a typo and try to correct it
+correct_typos(dat,v)
+```
+
+We can see that the correct_typos() function has located the error
+
+Note that correct_typos is very limited,  it works only with statements of equality, such as
+
+net profit = income- expenses
+
+Here is another example
+
+```{r}
+data(retailers)
+v2<-validator(TotalRevenues=turnover+other.rev==total.rev,Profit=turnover-total.costs==profit)
+
+cf<-confront(retailers, v2)
+summary(cf)
+head(cf)
+```
+
+```{r}
+#locate the error
+le<-locate_errors(retailers,v2)
+print(le)
+summary(le)
+values(le)
+```
+
+
+```{r}
+
+rfixed=correct_typos(retailers,v2)
+```
+# now confront again, and see how well this did at fixing errors
+```{R}
+cf2<-confront(rfixed, v2)
+summary(cf2)
+head(cf2)
+
+```
+
+Note: this doesn't work with all valid rules!
+
+#Examining the changes produced by corrections
+
+We can use a function called diff_daff that compares two dataframes and shows us the differences between the two
+
+diff_daff is a Unix style utility that in Unix compares files,  in R diff_daff is a copy of this Unix system function.
+
+The "daff" package in R was removed from the CRAN repository as it was not being maintained by the original author,  they failed to address bug reports in a timely manner, so it was dropped from CRAN.  However, it turns out that dropped packages are archived,  so if we go through a slightly different install process, we can work with this package, using an older version.
+
+This is part of using open source software,  nobody is being paid (directly) to maintain these tools.
+
+Why would a tool lose support?
+
+-the original author can no longer maintain it, for whatever reason- job changes, changes in computer operating systems, etc, etc.
+
+-someone creates a better version of the same set of tools, ie market competition
+
+We will use diff_daff to compare the original data to the error corrected version
+
+```{R}
+install.packages("remotes")
+require("remotes1")
+remotes::install_version("daff", version="0.3.5")
+```
+
+We can see where the changes occurred using a diff function to look for changes or differences in two data frames
+
+This produces a really nice output showing us exactly where changes were made,  this is really helpful in documenting our
+alterations
+
+
+```{r}
+require("daff")
+mydiff=diff_data(retailers, rfixed)
+mydiff$get_data()
+```
+
+Adding another test, an inequality
+
+```{r}
+v2<-validator(TotalRev=turnover+other.rev==total.rev,Profit=turnover-total.costs==profit,Staff=staff.costs>=staff)
+# look at the summary prior to the error correction
+summary(confront(retailers,v2))
+```
+
+
+```{R}
+rfixed2=correct_typos(retailers,v2)
+summary(confront(rfixed2,v2))
+```
+
+The typo correction didn't fix all the errors, but it did fix a couple of them.
+
+
+We can see where the changes occurred using a diff function to look for changes or differences in two data frames
+```{r}
+require("daff")
+mydiff=diff_data(retailers, rfixed2)
+mydiff$get_data()
+```
+
+# Bad experiences with correct_typos
+
+looks like it really only works with linear equalities!
+
+The manual for correct_typos indicates it will work with inequalities, such as 
+
+      staff.costs>=staff
+
+But in practice, it never seems to work.
+
+# summary of changes made
+
+The Cells function can show us a summary of the changes made
+```{r}
+print(cells(start=retailers,stemp1=rfixed2))
+```
+

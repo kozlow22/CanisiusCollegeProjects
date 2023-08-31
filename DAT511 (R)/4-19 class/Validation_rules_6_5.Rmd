@@ -1,0 +1,171 @@
+---
+title: "Validate_6_5"
+author: "HDS"
+date: "June 15, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## More on Validators
+
+This is on section 6.2-6.3 of van der Loo and de Jonge on their validate package
+
+The idea of the validate package is just a systematic way of thinking about the nature of your data.
+
+You create a set of rules about the nature your data (a validator), and then confront your data with those rules
+
+```{r}
+require("validate")
+data(retailers)
+
+rv<-validator(
+  TO=turnover>0,
+  SCR=staff.costs/staff <50,
+  TC=total.costs>=0,
+  S=staff>=0,
+  RT=turnover + other.rev == total.rev
+)
+
+# end of the validator description, print it out
+rv
+```
+ 
+ Notice that rv is an object in the validator class
+ 
+ It has 5 named tests
+ 
+#groups in a validator
+
+we can set up a "group" within a validator and check all members of the group
+ 
+```{r}
+ rv2<-validator(
+  var_group(turnover,total.costs)>=0
+)
+rv2
+```
+
+
+```{R}
+cf<-confront(retailers,rv2)
+head(cf)
+```
+ 
+  
+Now we will confront the data with the validator
+
+```{r}
+
+cf<-confront(retailers, rv)
+summary(cf)
+head(cf)
+```
+#which entries failed the test?
+
+to find the location of the violations of the rules, we can use the values(cf) function
+
+```{r}
+head(values(cf),10)
+```
+#Defining a validator
+
+The validate package breaks down the process of creating validation rules and applying them to data into two steps.   This is helpful when data changes, or the analysis is likely to be repeated,  it also makes the entire process highly transparent and trace-able.
+
+We are acually using a domain specific language (ggplot is another example of a DSL), which is meant to do a very specific task.  In this case both validate and ggplot are embeded with R
+
+Here's a validation rule set
+```{r}
+xv<-validator(
+  xcheck=x>0,
+  y>0,
+  x+y==z,
+  u+v==w,
+  mean(u)>mean(v)
+)
+
+# here's a data frame to apply this to
+x=runif(20,1,4)
+y=rnorm(20,mean=3,sd=1.3)
+z=x+y
+u=rnorm(20,mean=1.1,sd=1)
+v=rnorm(20,mean=1,sd=2)
+w=u+v
+tdata=data.frame(x=x,y=y,z=z,u=u,w=w,v=v)
+
+summary(xv)
+
+# subsetting the validator
+
+summary(xv[c(2,3)])
+```
+Getting more information about a rule, use the [[]] form
+
+```{r}
+xv[[1]]
+```
+
+Pipelining
+
+The magrittr package in R allows for Unix style pipeling of information (data) through functions.   Pipelining is a very efficient way of handling chains of analysis- this is a semantic choic
+
+```{r}
+require(magrittr) 
+tdata%>% confront(xv)%>%summary()
+```
+
+The input data in tdata was piplined into confront and from there to summary()
+
+The maggrittr package was by Bache and Wickham (2014), Hadley Wickham also wrote ggplot and was very involved with the grammar of graphics,  which tells you a bit about his thinking about how the structure of coding work (yeah, I'm a massive geek)
+
+Notice how the comparison of the values in V3 and V4 was done, in V3 for example, the code checked to see if the absolute value |x+y-z| was less tha 1e-8.   When we work with floating point numbers there is always a rounding error, so we are looking for equality within that rounding error. 
+
+We can alter the rounding error tolerance by setting the value in lin.eq.eps
+```{r}
+require(magrittr) 
+tdata%>% confront(xv,lin.eq.eps=1e-8)%>%summary()
+```
+
+It is possible to define rules (ie the validation set) by
+
+-typing the validation set in online, as above
+
+-Creating rule tables within files
+    -in "open" format as above
+    -as YAML format, which is a superset of JSON files
+
+Note that YAML is a text file format
+
+Each rule is separated by a dash
+Each line is inset one space (or several, but don't use TAB)
+Each colon must be followed by a space
+
+#yamlrules.yaml
+rules:
+-
+ expr: turnover+other.rev==total.rev
+ name: inc
+ label: Inc Balance
+ description: Total income must be turnover plus other revenues
+-
+ expr: if(staff>0) staff.costs>0
+ name: stf
+ label: staff/cost sanity
+ description:  Gotta pay your staff
+
+```{r}
+
+v<-validator(.file="/Users/Mike/Documents/DAT511/4-19 class/yamlrules_6_5.yaml")
+summary(v)
+v[[2]]
+```
+
+Saving files as YAML format
+
+export_yaml(v,file="myfile.yaml")
+
+Creating a YAML formatted string
+
+str<-as_yml(v)

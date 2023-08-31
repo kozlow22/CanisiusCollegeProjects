@@ -1,0 +1,12 @@
+# yamlrules_6_5.yaml
+rules:
+-
+ expr: turnover+other.rev==total.rev
+ name: inc
+ label: Inc Balance
+ description: Total income must be turnover plus other revenues
+-
+ expr: if(staff>0) staff.costs>0
+ name: stf
+ label: staff/cost sanity
+ description:  Gotta pay your staff

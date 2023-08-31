@@ -1,0 +1,403 @@
+---
+title: "R Notebook"
+author: "HDS, Mike Kozlowski"
+output: html_notebook
+---
+##Structure of typical data files
+
+Ideas discussed in chapter 4 of van der Loo and de Jonge
+
+This is a quick survey of different forms of input data
+
+  -flat data
+  -converting flat data from wide to long form
+  -JSON form- documents
+  -Network Graphs
+  -time series
+  -images
+
+#Flat data files
+
+The most common form of input file you will see are flat data tables.
+
+The tables in an SQL data base are all flat data tables.  
+
+In a flat table, each row is individual event, with a unique identifier or key- sometimes the key may require multiple variables (Customer ID, date and time of transaction for example).    There may be missing data, but each event has the same number of variables, and the variables are the same size.
+
+There are other types of data,  aside from flat tables
+
+-data where some variables are vectors or matrices,   such as sound recordings,  videos or pictures, and these may not be the same size.    Other types of database files (NOSQL-Not Only SQL) can handle tables that are multi-dimensional instead of flat-
+
+Let's look at a flat data frame, the Anderson Iris data set
+```{r}
+data('iris')
+summary(iris)
+str(iris)
+```
+
+this is pretty typical of a data table, this one is pretty simple.
+
+# Matrices-
+
+Data Tables contain a range of different types of data: numerical, integer, characters, strings, binary and factors
+
+You really can't do mathematics on a data table, because the variables are different things
+
+To do mathematics on something like a table,  it needs to be formatted as a matrix in R.
+
+The first 4 columns in the iris table are all numerical, we'll convert those to a matrix
+
+and muliply this by the row vector 
+  1
+  2
+  1
+  2
+
+the result for each row should be (Sepal.length+Petal.length)+2(Sepal.width+Petal.Width)
+
+this should be a 150 x 1 matrix
+
+(remember your linear algebra from MAT 501 or elsewhere???)
+
+
+```{r}
+iris_matrix=as.matrix(iris[,1:4])
+temp=iris_matrix %*% matrix(c(1,2,1,2),nrow=4) 
+dim(temp)
+head(temp)
+```
+
+#SQL databases have flat data files
+
+SQL has a bunch of commands for handling database storage using tables.
+
+Most of the time when you want to extract data (using SQL) you are using a SELECT command, which allows you to select all or part of a data table  given some conditions.
+
+This is sometimes called "slicing" a data table.
+
+In R, we can use SQL commands on a data table, we need to use the sqldf package to do so
+
+Note the quotes around the column name in the SELECT statement
+
+```{r}
+require('sqldf')
+
+iris_temp=sqldf('SELECT "Petal.Width" FROM iris')
+head(iris_temp)
+```
+
+We can use more complex select statements
+
+```{R}
+iris_temp=sqldf('SELECT "Petal.Width","Petal.Length" FROM iris WHERE ("Petal.Length">5.1)')
+head(iris_temp)
+```
+
+If you want to use SQL commands to manipulate data tables,R will let you do that.   A lot of systems will allow you to use SQL with them, notably SAS.
+
+I often slice just using the Base R operations
+
+```{r}
+iris_temp=iris[(iris$Petal.Length>5.1), c("Petal.Width","Petal.Length")]
+head(iris_temp)
+```
+
+
+### Long and Narrow Data sets vs Short and Wide Data Sets
+
+
+The data table for iris, and most classic data tables are wide (many columns).  It is possible to write any wide table as a Narrow table.   Each row has only three entries
+
+Identifier, Variable Name, Value
+
+This looks quite odd initially,  but it means that any data table can we written in exactly the same format.
+
+This means that we can manipulate any data set in long form in the same manner, since any rectangular table can be written this way
+
+Some data manipulations in Tableau make use of this type of data conversion.
+
+This is a default melt,   it uses Species, then variable and then the value.
+This form is not ideal, there is no unique identifier per specimen
+
+```{R}
+require('reshape')
+iris_m=melt(iris)
+head(iris_m,10)
+tail(iris_m,10)
+```
+
+We get a more useful result by specifying that we want the id variable in the
+long form
+
+```{r}
+iris$id_num=1:150
+iris_m=melt(iris, id.vars=('id_num'))
+head(iris_m,10)
+tail(iris_m,10)
+```
+
+We can specify that we want two id columns, rather than one
+
+This gives us both the specimen id number and the species
+
+```{r}
+iris$id_num=1:150
+iris_m=melt(iris, id.vars=c('id_num',"Species"))
+head(iris_m,10)
+tail(iris_m,10)
+```
+
+We can do some interesting plots with this, using ggplot
+
+In using ggplot
+
+-we specify a data frame,   iris_m in this case the long form of iris
+
+-next we specify an aesthetic aes(),  where we specify the variables to be use
+   for x and y in the plot, and also for color, size or symbol.  The color,size and symbol
+   are grouping variables in the plot
+   
+   We are going to plot all the information about lengths and widths in the iris data
+   set,  color coded by species.    In iris_m  "variable" is the measured length or width
+   and "value" is the measurement
+
+-we then add a "geom" which is a specification of what type of plot we want
+
+-after that we can add titles, x and y axis labels,  grids, etc
+
+
+
+
+```{R}
+require("ggplot2")
+
+ggplot(iris_m, aes(x=variable,y=value, color=Species))+geom_boxplot()
+
+
+```
+
+# Question/Action
+
+This is a box and whisker plot
+
+look up geom_box in ggplot,   what does the box mean?  where is the mean or median value?  what do the ends of the box mean?   What do the vertical bars (the "whiskers") tell you?  What are the dots?
+
+The median value is the line in the middle of the box, the ends of the box represent the "hinges" representing quadriles of data, with the vertical bars catching 95% of all results, with the dots being outliers.
+
+What measurement would allow you to immediately tell if a particular Iris plant is in the setosa species?
+
+The petal length and petal width are indicators to be able to identify a setosa.
+
+Why is it harder to tell versicolor and virginica apart?
+
+The data overlaps, so you could not easily tell just by measuring them, you could only make a guess without certainty.
+
+#Time Series Data
+
+R has a specialized data structure for time series,  it allows for rapid manipulation of times series results
+
+
+
+```{R}
+data(Nile)
+str(Nile)
+class(Nile)
+```
+
+```{r}
+start(Nile)
+end(Nile)
+frequency(Nile)
+```
+
+I'll create a monthly data set,  using a simulation, that lasts for 20 years
+
+```{r}
+m=1:240
+y=10+ 4.1*sin(2*pi*m/12)+rnorm(240, 0, 1)
+time_data<-ts(data=y,start=2000,frequency=12)
+plot(time_data)
+```
+We can also plot the monthly values over all 20 years,  to see an annual pattern in the data
+
+```{r}
+monthplot(time_data)
+```
+
+###Graph Data
+
+One way to talk about networks or connections is to express them as what mathematics call graphs.
+
+Each object (person, firm, etc) is a node in a graph, and a connection between people is called an edge.
+
+We can specify graphs either as a list of connections
+
+or as an adjacency matrix, in which ones indicate two nodes and connected and zeros mean they are not.
+
+Edges can be directed (indicating a one way relationship),  or undirected (no orientation)
+
+Suppose the data set below represented text message sent throughout a day among a group of friends,  0 means no message sent, 1 means a message
+
+```{r}
+my_graph=read.csv(file.choose(),header=TRUE)
+row.names(my_graph)=my_graph$Names
+my_graph=my_graph[,-1]
+my_graph
+```
+
+What does this pattern mean?
+
+The pattern shows the edges of the graph, a 0 indicates there is no connection between those two nodes, and a 1 indicates that there is a connection.
+
+
+```{r}
+require('igraph')
+
+iggy=graph_from_adjacency_matrix(as.matrix(my_graph),mode="directed")
+
+plot(iggy)
+```
+
+#Web Data
+
+If you are lucky, web data will have an option to download a CSV, or use an API to get data (more on that later), but it may not be well formatted for automatic data retrieval.
+
+A tactic called Web scraping can be used to extract data from web pages,  using the html tags that are used to control the formatting of web pages.   There are tools, notably the beautifulsoup package for doing this
+
+#JSON Files
+
+JSON is a data storage format that allows for storage of non-flat data.  It is derived from a JAVA Script based way of storing data (JavaScript Object Notation).   Basically,   each variable value is labeled, and the hiearchy (structure) of the data file or data object is indicated in the file itself.
+
+YAML (YAML Ain't Markup Language) is a superset of the JSON file format,  and it handles scalars, lists, hashtables, dictionaries and associate arrays (key-value storage forms)
+
+XML (Extensible Markup Language) is another formatting language, popularly used in website formatting
+
+These all have formatting information embedded in the file that indicates what the data structure looks like, so one is not stuck with flat tables.    JSON files are common in NOSQL systems.
+
+Example of a data entry within a JSON File
+
+{
+    "FirstName": "Jane",
+    "LastName": "Smith",
+    "Age": 31.0,
+    "Address": "10 3rd Street, New York, NY 10021",
+    "Children": [
+        "Anne",
+        "Alice"
+    ],
+    "Spouse": "Henry"
+}
+
+We can download a JSON file from Open data Buffalo
+
+This is a table called "Neighborhood Metrics"
+
+```{R}
+require("RSocrata")
+
+target="https://data.buffalony.gov/resource/adai-75jt.json"
+
+Neighborhood_df<-read.socrata(target)
+```
+
+We really don't see much difference between downloading the JSON file and downloading a CSV file,  
+R just loads it into a dataframe for use
+
+```{R}
+head(Neighborhood_df)
+```
+
+To see what this looks like in a JSON format
+
+We can convert the data frame to a JSON string format
+
+This is one long string, we will convert only the first two rows of the df back to JSON
+
+```{R}
+require("jsonlite")
+
+ne_JSON=toJSON(Neighborhood_df[1:2,],pretty=TRUE)
+
+```
+
+In the JSON form,  each row of the data frame is stored as a "document" which starts which is enclosed
+in a set of curly brackets {}
+
+Within the curly bracket, there are a set of variable: value pairs,   just like we saw with the long form
+of data frame earlier.
+
+The difference is that in JSON the value can be another document, started and stopped with {}, so that we can have documents within documents,  allowing for storage that is not "flat",   it would be like storing a data frame within a data frame,   sort of a "nesting" process.
+
+Additionally, each document does not have to have the same set of variables in it
+
+JSON files are also directly human readable, you can tell what the content of a given document means, just by viewing the text.
+
+NoSQL Databases like MongoDB use this style of document based storage,  each record is stored in this form.
+
+JSON stands for Java Script Object Notation,   it is why of specifying how a Java Script object should be
+stored.
+
+Java and Java script are two different object oriented program languages.   JavaScript is heavily used in many IT applications, and there is a need to store JavaSript objects in files,  since they are not flat, but in this "document" form,   flat tables don't work well with JavaScript or Java,   hence the use of JSON.
+
+"According to Stack Overflow's 2020 Developer Survey, JavaScript currently stands as the most commonly-used language in the world (69.7%), followed by HTML/CSS (62.4%), SQL (56.9%), Python (41.6%) and Java (38.4%)"
+
+Note,   HTML/CSS is the document scripting language used in websites,  SQL is the database query language.
+
+Here is what the JSON version of the first two rows of the neighbhorhood metrics data set looks like
+
+```{R}
+cat(ne_JSON)
+```
+
+
+#Images  The MNIST data set
+
+The MNIST data set is a libary of images of hand-drawn digits (0-9)
+
+The data contains a set of test images and a set of training images, plus the labels for each image, so one
+can use it as an example set for building image classifiers
+
+There are 60,000 test images and 60,000 training images in the data set.  The images are small 28 x 28 pixels, they are packed into a single row of 784 columns.  To plot properly this must be converted into a matrix and then the column order reversed.
+
+This data would not fit into a data table form in a way that allows it to be used.  To unpack it, we had to be given the information about how the storage was formatted,  and it is rather non-standard.
+
+```{R}
+require('dslabs')
+mnist<-read_mnist()
+```
+
+```{r}
+str(mnist)
+```
+
+In the cell below, we convert the 784 elements in the fourth row to a 28 x 28 element matrix, and then plot it
+
+This command converts the 784 elements of mnist$test$images[i,] into a matrix with 28 rows and 28 columns, and then reverses the ordering of the columns
+
+     matrix(mnist$test$images[i,],nrow=28)[,28:1]
+
+The image function then plots the matrix as an image, using a gray color scale, with no
+axis labels and an aspect ratio of 1 to produce a square image
+
+We won't do a lot with images in this course,  if you run into this in a workplace, you will need to do some
+reading.
+
+
+```{R}
+i<-4
+image(1:28,1:28,matrix(mnist$test$images[i,],nrow=28)[,28:1],
+      col=gray(seq(0,1,0.01)),xlab='',ylab='',asp=1)
+mnist$test$labels[i]
+```
+
+In general color images are stored as a set of three matrices one for each color
+channel,  red, green and blue
+
+If each image was 740 by 480 pixels in color, we would have three 740 x 480 matrices
+
+In the simple example above, we have 28 x 28 images with only one channel,   that is to say, black and white
+images.
+
+
+
+

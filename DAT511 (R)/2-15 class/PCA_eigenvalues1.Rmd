@@ -1,0 +1,269 @@
+---
+title: "PCA_Eigenanalysis"
+author: "HDS"
+date: "9/16/2020"
+output: html_document
+---
+
+updated Feb 2023
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Principle Component Analysis (PCA) and Understanding Structure in a Dataset
+
+Unsupervised learning for developing understanding of patterns in data,  and for locating outliers
+
+We use a couple of different tactics to understand the relationships between the variables in the data set, this is referred to as the correlation structure of the data
+
+PCA is a way of looks for patterns or structure in the correlations or covariances among variables
+
+PCA looks for combinations of variables (called axes) that explain the largest amount of variation (variance)
+in the combined set of variables.    Axis are ordered by decreasing variance, so the 1st explains more than the 2nd,  the 2nd more than the third
+
+We don't initially know what the axes mean, we can load at the coefficients or loadings to see which variable is most important
+
+We can compute the score of each specimen on each axis,  which shows us relationships among the variables 
+
+#Example
+
+We'll look at the mtcars data set
+
+```{R}
+data(mtcars)
+str(mtcars)
+```
+
+We will focus here on the continuous variables with large ranges 
+
+mpg, disp (displacement), hp, wt (weight), qsec (time in a 1/4 run or drag)
+
+We won't use
+cyl, drat (drive ratio), vs (engine configuration), am (auto or manual), gear (number of gears),  carb (number of carburetors)
+
+since the ranges are small or they are categories
+
+```{R}
+mtcar_short=mtcars[,c('mpg','disp','hp','wt','qsec')]
+```
+
+What patterns do we expect to see in the data:
+
+1.) large cars with high wt, disp, and hp with low mpg,  versus small cars with low wt, low disp, low hp and high mpg
+
+2.) Slow cars with high qsec times and low hp, probably low disp versus fast cars with low qsec, high hp
+
+Variance shows us the pattern of differences relative to the mean, the mean square difference from the mean value,  the square root of
+variance is the standard deviation.
+
+Covariation is the shared pattern of variance between two variables,  do they depart from the mean together.
+
+hp and disp should show high covaration,  hp and mpg should have a negative covaration
+
+# The variance-covariance matrix
+
+One way to summarize the pattern of variance in a data set is create a variance-covariance matrix, where the diagonals are
+the variance in a single variable and the off-diagonals are the covariance between variables.
+
+Here's what it looks like for the mtcars data (continuous variables only)
+
+The variance/covariance uses the value minus the mean value of each variables
+
+```{r}
+my_vcm=cov(mtcar_short)
+my_vcm
+```
+
+As predicted hp and mpg have a negative covariance,   if the hp is greater than the mean,  mpg is often less
+
+We can also look at a correlation matrix,   which is the covariances divided by the square roots of the covariances of the variables, so correlation runs from zero to one
+
+```{R}
+my_cor=cor(mtcar_short)
+my_cor
+```
+
+#Question
+
+Where are the highest correlations?  Do they make sense?  Where are the smallest correlations?
+
+```{R}
+heatmap(my_cor)
+```
+This is an interactive form of heatmap,  hover over it to see more information
+
+```{R}
+require("plotly")
+fig<-plot_ly(z=my_cor,type="heatmap",x=colnames(my_cor),y=rownames(my_cor))
+fig
+
+```
+
+
+#Eigenanalysis
+
+Eigenanalysis is way of finding combinations (eigenvectors) of the original variables in a matrix that are orthogonal (perpendicular) so that the eigenvalues of the matrix form a new matrix which is diagonal.
+
+This is a linear transformation of variables so the new variables.
+
+If we carry out an eigen analysis of a variance-covariance matrix, we will get combinations of the original variables that diagonalize the matrix
+
+The function eigen computes the eigen decomposition of the matrix, and returns the eigen values (diagonal elements of the matrix) and the eigenvectors, the linear combinations of the original variables that make up the new variables corresponding to each eigenvalue
+
+```{r}
+require("Matrix")
+ev=eigen(my_vcm)
+ev$values
+cat("\n")
+Diagonal(5)*ev$values
+```
+
+Since this was a variance-covariance matrix, the eigen analysis gives us a set of linear combinations (eigen vectors), which have no covariance.   These are the eigen vectors.
+
+The first eigenvector corresponds to the first (largest) eigenvalue.  So the first eigen vector describes the largest possible linear source of variation in the data.   It is a predictor based on the variables that explains as much of the data structure as possible.
+
+The second eigenvector explains as much as possible (using a linear combination) of the remaining variance,  given that the 2d eigenvectors is perpendicular to the first (or statistically independent of the first)
+
+Here are the eigen values for the mtcars set
+
+```{r}
+ev$vectors
+```
+
+The first column here is the combination of the original variables the explains the greatest variation in the data
+
+"mpg"         "disp"        "hp"          "wt"          "qsec"
+0.038121133   -0.899665339  -0.434816756  -0.006240033  0.006671424
+
+mpg, qsec are positive contributors
+disp,hp, wt are negative
+
+So this is mostly a contrast of vehicles with mpg and high qsec (ie slow cars) with low disp, hp, wt- exactly what we would expect
+
+We could take a dot product of this eigenvector with the data matrix to get the components (or scores) along the eigenvector.   
+
+Cars with high scores on the first eigenvector would have high mpg and high qsec times,  and low disp, hp and wt
+
+Cars with low scores on the first eigenvector would have low mpg and low qsec times, with high disp,hp and weight
+
+The eigenvalue for the first axis (18637) divided by the sum of all the eigenvalues 
+
+sum(1.863748e+04 1.453874e+03 9.237556e+00 1.455821e+00 8.947809e-02)= 20102
+
+gives us 18637/20102=.927 or 92.7% of all the variation in the data
+
+so we learn about 92.7% of the data using only one variable, the scores of all cars along the first eigen vecotor
+
+Here is the calculation of the scores along the first eigenvector
+
+```{r}
+temp=data.matrix((mtcar_short-apply(mtcar_short,2,mean))) %*% ev$vectors[,1]
+head(temp)
+tail(temp)
+cat("\n")
+```
+
+
+# Principal Component Analysis
+
+This method is called Principle Component Analysis, or PCA
+
+The "variance explained"" by the method is just the eigenvalues,  often expressed as a percentage
+
+The "PC axes" are just the eigenvectors,  first PC axis explains the most variance
+
+The "PC scores" are just the components of each specimen (as a vector) along the PC axes
+
+The  "PC loadings" are the coefficients of the original variables along the eigenvectors (ie the values in the eigen vectors)
+
+Why bother with all this?
+
+1.) The first several axes often display most of the variation in the data set, so you rapidly determine the primary patterns in the data
+
+2.) Outliers cause a lot of variance, and show up far from the mean.  The mean is the average in the data set and is at zero along each axis.
+
+I showed you the eigenvalue calculations directly,  most of the time we will us a package to get PCA results
+
+There are many PCA packages
+
+prcomp in 'stats'
+princomp in 'stats'
+PCA() in 'FactoMineR'
+dudi.pca in 'ade4'
+acp in 'amap'
+
+```{R}
+my_pca=prcomp(mtcar_short,scale.=FALSE)
+summary(my_pca)
+```
+
+Summary shows us what proportion of the variance is explained by each axis, the first two explain 99.9%
+
+Let's look at the loadings to see what each axis means, in this package they are are called "rotations",  note that rotation means axis or loading or eigenvector
+
+The numbers are the multipliers for each variable,  relative to the average car.
+
+The average car has zeros on each PC axes,   extreme cars are far from the average.
+
+```{r}
+my_pca$rotation
+```
+The first axis is disp+hp vs mpg and qsec,  so high scores on 1 mean large engines, high hp
+
+The other three variables have small loadings,  so they don't contribute much to PC1
+
+```{R}
+barplot(my_pca$rotation[,1],names.arg=rownames(my_pca$rotation))
+```
+
+The second axis is hp positive,  relative to displacement
+
+Cars with high scores on this axes have a lot of power relative to the size of the engine
+
+```{R}
+barplot(my_pca$rotation[,2],names.arg=rownames(my_pca$rotation))
+```
+PCA 3 wasn't particularly important but it indicates the negative of mpg, so negative scores
+mean high mpg,  positive scores mean low mpg relative to the average
+
+```{R}
+barplot(my_pca$rotation[,3],names.arg=rownames(my_pca$rotation))
+```
+
+we can plot the scores, they are in my_pca$x
+
+We will add these to the data frame, so we can plot easily
+
+```{r}
+mtcars_pca=cbind(mtcars,my_pca$x)
+str(mtcars_pca)
+```
+
+#Plot the scores along first two axes
+
+Each specimen (car) has a score along each axis
+
+Axis one is displacement and horsepower
+
+Axis two is horsepower relative to displacement, or in contrast to displacement
+
+We will color code the data by using cyl converted to a factor- note that cyl was not used in creating the PCA, so the clear grouping of cars by number of cylinders here was not created by the PCA,  it is an outcome
+
+```{R}
+require('ggplot2')
+ggplot(mtcars_pca,aes(PC1,PC2,colour=as.factor(cyl)))+geom_point()
+```
+The first axis is disp+hp vs mpg and qsec time,    cars on the left are low hp,small engines, slow, high mpg
+
+Cars on the right are high hp, high displacement, fast and get low mileage
+
+Axis two was hp relative to everything else, so high values are unusually high hp for the rest of the data- sports cars?
+
+We can add a label, the car name
+
+```{R}
+require('ggplot2')
+ggplot(mtcars_pca,aes(PC1,PC2,colour=as.factor(cyl)))+geom_point()+geom_text(aes(label=rownames(mtcars_pca)))
+```

@@ -1,0 +1,185 @@
+---
+title: "Validation_More_6_5_7"
+author: "HDS"
+date: "August 8, 2018"
+output: html_document
+---
+checked 4/18/2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## More Validation Examples
+
+following van der Loo and de Jonge,  section 6.5.7 and onwards
+
+Specific examples of how to test specific aspects of data sets
+
+###6.5.7 Variable types and metadata
+
+Are data of the correct class? Check to make sure the data types are all correct
+
+We can use class() and the standard is.{something} functions
+
+Note: I'm using check_that() here for demonstration purposes, since these are single line rules 
+
+```{r}
+require("validate")
+data("retailers")
+
+check_that(retailers,is.integer(staff))
+check_that(retailers,class(total.rev)=="int")
+```
+
+Check the number of rows in a data set
+
+Looking at the iris data set here
+
+```{r}
+check_that(iris,nrow(.)>=150)
+```
+
+Check the percentage of missing data
+```{r}
+check_that(retailers, sum(is.na(.))/prod(dim(.))<0.2)
+```
+###Values in lists of allowed values
+
+these are often string comparisons
+
+gender %in% c("male","female")
+
+tolower(gender)%in% c("male","female")
+
+or use fuzzier matching- refer to chapter 5 on matching criteria
+
+You can create lists within the validator object to store lists of allowed values,  using the := operator, which is part of the validate DSL
+```{r}
+require('magrittr')
+d<-data.frame(gender=c("male","female","female","male","unknown"))
+v<-validator(
+  gendercodes:=c("male","female","f","m"),
+  GV=gender %in% gendercodes
+)
+confront(d,v) %>%summary()
+```
+
+
+###Cross Record Dependencies 6.5.10
+
+May change when the data set is modified- this may make it difficult to localize the error
+
+```{r}
+v<-validator(
+  cvcheck=cov(height,weight)>0
+)
+cf=confront(women,v)
+summary(cf)
+```
+
+```{r}
+v<-validator(
+  height<(median(height)+1.5*IQR(height))
+)
+cf=confront(women,v)
+summary(cf)
+```
+
+But if this fails, we would want to know why.  Was a height too high?  was there a problem with the estimated median or the inter-quartile range (IQR) from the data?    In other words, is the problem one data point, or the set as a whole?
+
+
+
+###Cross data set validation
+
+Using data from two or more sets
+
+We can pass a list or a data frame in as a reference, and then use values or functions of values in the list as a validation rule
+
+Only one list may be sent, but one could place many dataframes within a list
+
+We can compare conditions in one set to parameters derived from another set
+
+```{r}
+males=data.frame( height=c(70,68,71,67),weight=c(180, 190, 145, 192))
+v<-validator(
+  women_mean_h:=mean(height),
+  upbound=women_mean_h<mean(ref$height),
+  lowbound=women_mean_h>0.85*mean(ref$height)
+)
+cf=confront(dat=women,x=v,ref=males)
+summary(cf)
+```
+
+###Macros,  Variable groups and Keys in Validate  6.5.13
+
+These are features of the DSL meant to make it easier to create rules and re-use code
+
+Macros- using the := operator within the validator construction
+
+x:=6,   so x is a stored vlaue
+y:=mean(x,na.rm=TRUE)   is a stored macro, so it can be re-used in the code, helpful if it is used over and over
+
+z<y  is read as z<mean(x,na.rm=TRUE)
+
+Variable groups
+
+Allows you to apply the same rule to all variables in the group
+
+var_group(a,b)>0   means two rules,   a>0 and b>0
+
+###Analyzing Output: validation Objects 6.5.14
+
+The output of a confrontation can be large,  we would like to aggregate results to make them easier to follow
+
+Here's an example from the retailers set
+
+There is no good key in this data set right now, we will add an identifier, we then send this to confront as the key
+```{r}
+retailers$id=paste0("r-",1:nrow(retailers))
+v<-validator(
+  OTREV=other.rev>0,
+  TOver=turnover>0,
+  TRev=total.rev>0,
+  StfCost=staff.costs>0,
+  TC=total.costs>0,
+  RevBal=turnover+other.rev==total.rev
+)
+cf<-confront(retailers,v,key="id")
+summary(cf)
+```
+
+```{r}
+aggregate(cf)
+```
+We can see where the values occurred
+
+```{R}
+values(cf)
+```
+
+
+
+We can aggretate by record, to see the failures by record line
+
+This is often what we want to see, which records indicate failures, although we know for some rules, errors are hard to assign to a particular record
+
+```{r}
+t=aggregate(cf,by="record")
+head(t,n=5)
+```
+
+We can sort by records as well
+
+```{r}
+t=sort(cf,by='record')
+head(t,n=5)
+```
+
+Once we have t, we could slice out all the records with less than 6 passes, ie all the records that had at least 1 failure or NA
+
+```{r}
+t[t$npass<6,]
+```
+
+

@@ -1,0 +1,118 @@
+---
+title: "Error_localization_7"
+author: "HDS"
+date: "8/8/2018"
+output: html_document
+---
+
+Updated 4/26/2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Error location ideas
+
+If we have a rule that tests a single value ( u,t,x in van der Loo and de Jong's taxonomy of variables), then if the value in a given row and corresponding column fails the test, then it is obvious where the error is located.
+
+So if deposit values into an account must be a positive value, then if we find a negative deposit value, it must be the error.
+
+On the other hand if we make use of two or more values in the rule (U,u,t,x),  then we don't really know which of the two or more values are in error,   and we need to locate or localize the error to fix it
+
+     Multiple comparison rules
+     
+     U-   sales in our Erie County branches should be more than 90% of the sales in Niagara County branches, and less than
+          150% of the sales in Niagara County branches   (comparison of two groups)
+     u- sales of the Main Street office should be greater than sales in the Springville office   (comparison of two rows)
+     x-net sales income in each office should be less than or equal to gross sales in the same office  (comparison of two   
+        varialbes in the same row)
+     t- sales in a given office should not vary by more than 20% from one month to the next (same x and u, different t)
+  
+If one of these rules failed, there are at least two possible locations for the error.
+
+
+
+
+# van der Loo and de Jonge
+# Chapter 7,  Using errorlocate
+
+We will set up a short test set and look for the error
+
+errorlocate uses a set of validation rules to locate the errors
+
+```{r}
+require("errorlocate")
+
+# set up validator
+
+r<-validator(
+  age>=0
+)
+
+# find up the error
+
+junkdata=data.frame(age=c(14,23,-3),married=c(TRUE,TRUE,FALSE))
+le<-locate_errors(junkdata,r)
+
+#view a summary of the errors found
+
+summary(le)
+```
+
+We have two records with no errors, one record with an error
+
+We can look at the values in the error location output
+
+```{r}
+values(le)
+```
+
+This indicates that the third entry in the age column has an error
+
+this is a single variable (x) style test, so finding the location is trivial
+
+Not a big deal with 3 rows in the data set, but if we had hundreds or thousands of rows, this would be a big help
+
+Here is a validator with multiple tests
+
+```{r}
+
+r<-validator(
+  AgeChk= age>=0,
+  M_Age_Chck= if(married==TRUE) age>=16
+)
+
+junkdata=data.frame(age=c(14,23,-3),married=c(TRUE,TRUE,FALSE),id=c(1,2,3))
+le<-locate_errors(junkdata,r)
+
+# looking at the errors item is equivalent to using values(le)
+
+le$errors
+```
+
+In the result above,  where are the errors? Are they both "correct" or is there an ambiguity in the location of one error?
+
+
+# Replace errors
+
+When we have located errors, we will replace the values with Na
+
+This is not the only approach to this, but it does result in marking all missing or erroneous data the same way.
+
+```{r}
+cleanJunk=replace_errors(junkdata,r)
+cleanJunk
+```
+Note the system randomly chose to set age= NA on ID 1 due to the Marriage violation,  it could have easily been reversed
+
+I think that the random choice of how to handle this rule violation is problematic, the software is hiding an issue from us.
+
+
+### 7.3  Error Localization as MIP Problem
+
+This section of the book gets into the grit of linear and mixed integer program (MIP) to solve constrained linear optimizations, akin to scheduling problems.   This is used to find the minimum number of NAs to be introduced into a data set to remove the data errors.
+
+This is really only an issue with large data sets with rule conflicts which can be resolved several different ways.
+
+Mixed Integer Programming is a relatively complex set of theories and methods for handling optimization of relatively small systems,  up to 8 or 10 variables and perhaps 30 rows or so of data.    It is a pre-machine learning tactic, and it works well for small data sets.   It does not work at all for larger data sets.    
+

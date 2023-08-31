@@ -1,0 +1,362 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Neighbhorhood Metrics in the City of Buffalo,  and Using GGPlot
+
+We will be looking at some neighbhorhood metrics from the City of Buffalo, downloaded from
+Open Data Buffalo.
+
+We will look at using the popular GGPlot2 package to produce a number of different plots
+
+GGPlot2 is a bit unusual,  in that it is based on theory called the "Grammar of Graphics".
+
+Grammar in a human language tells us how to structure sentences and longer pieces of writing in a proper or consistent
+way.
+
+Applying the idea of grammar to graphics is interesting, there is an interesting book by Leland Wilkinson called "The Grammar of Graphics",  and GGPlot2 is an implementation of these ideas in R.   I think a lot of ideas from "The Grammar of Graphics" also appear in Tableau, implemented in a rather different way.
+
+Today, we are going to look at how to use GGPlot and at a lot of examples of different plots
+
+# Graphics Quality
+
+One of the issues that we need to be aware of in the Big Data Space is graphics quality.
+
+Many business people expect to see high quality graphics in presentations,   they often judge the quality of the work by the quality of the graphics.
+
+In contrast,  highly mathematical workers (including most Data Scientists) do not care much at all about the quality of graphics. Most data scientists use graphs continuously,  and they just use the default settings in packages such as R and Python,  which are clear and useful,  but not pretty.  For a data scientist,  a graph is a "working tool",   once they understand the content shown on a plot, they no longer care about the plot.    The mathematical content is all that matters to many data scientist,   many of them do not have to patience or interest in producing "high grade" graphics or visualizations.  In working on a project,  a data scientist may create dozens of graphs for their own purposes during an investigation,  so they tend to used "scratch" grade or "working" graphics that get the key job done, but which are not pretty.
+
+If you go to a statistics conference,  you will see a lot of very simple graphics, often using the default settings in R or Python, because that is adequate for the intended audience.  It turns out there are really easy ways to change the defaults and do a lot better.
+
+That grade of graphics is often not acceptable for business people,  who want presentation grade graphics.
+
+In part this means that the is a role for people to create high quality graphics for data projects.   Tableau and PowerBI rapidly produce high quality graphics.
+
+R and Python can be used to produce high quality,  presentation grade graphics.   You can control colors, lineweights, fonts, sizes, etc, etc with a very fine level of control.    You can actually get more customization and fine control in R or Python than in Tableau or PowerBI, but R and Python require text based programming of the image.   It is tedious and fussy process  (although,since I have typical bias of data scientists about graphics,  you may want to view my comments in that light.)
+
+While programming out all the details of graphics is tedious,   it is also easy to reuse the code.   You can create customized color palettes, fonts and other graphics for your company, and automate the use of them to rapidly create specific types of plots or graphics.
+
+
+# Goals in this Worksheet
+
+We want to 
+
+-see some how the grammar of graphics ideas work, and how to set up data to use ggplot
+
+-Look at a variety of useful plots in ggplot
+
+-Look at how to carry out fine level control of ggplot to alter colors, fonts, lineweights etc
+
+
+# Data Set- Neighborhoods in Buffalo
+
+```{R}
+infile="C:\\Users\\hdavi\\Dropbox\\Data_Analytics\\DAT511_Data_Cleaning\\Lectures_Spring_2023\\Examples\\Neighborhood_Metrics.csv"
+ndata=read.csv(infile,stringsAsFactors=TRUE)
+head(ndata)
+```
+
+# Basic Structure of GGPlot- grammar of graphics
+
+In GGPlot,  all the data on a given plot has to be placed into a single data frame.  
+
+We specify a ggplot object that indicates the data frame to be used, and which also sets up an "aesthetic"
+
+The aesthetic specifies what variables will be on the x and y axes of the plot, and which variables will be used for other features of the graph,  such as symbol types, symbol colors,  grouping variables, labels and so on.
+
+Once the basic ggplot is defined, with the aesthetic, then we add on other attributes to the plot that specify how the plot is to be created and to control other features of the plot,  such as title, axes, etc.  
+
+In Excel or Tableau, you select these options from menus,  in ggplot,  it is all controlled by text commands
+
+```{R}
+require(ggplot2)
+```
+Let's do a simple scatter plot of two variables
+
+How about poverty rate vs employment rate 
+
+  -our data is already in ndata
+  -we specify x as Employment.Rate and y as Poverty.Rate in the aesthetic definition
+  -we then add an attribute called a "geom" which indicates we want to plot points
+  
+  notice that variable (column) names in ggplot do not need to be in quotes
+
+```{R}
+ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate))+geom_point()
+```
+This produces a simple "Scratch Grade" plot,   the type of plot we might use as part of an analysis, but not presentation grade
+
+We can start adding options to this basic plot,  adding more detail and controls to the plot.   We can add to the aesthetic, or pass more parameters to the geom,  or we can add additional geoms and controls to the plot.
+
+This can be done incrementally,  by adding one term at a time and adjusting it.  There are endless options in ggplot,  we won't cover them all,  see
+
+https://ggplot2.tidyverse.org/
+
+But let's color code this simple plot by the "Community" variable,   note that Community is already a factor, which makes it
+easy for ggplot to decide how to do this.   Ggplot is heavily overloaded, so it's behavior changes if you input different types of data
+
+```{R}
+ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point()
+```
+Looking at this plot, the symbols are too small
+
+We can make them larger using several approaches, 
+
+we could set a size value in the aesthetic,   size=6, for example,  or we could set the size in the geom point option
+
+```{R}
+ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)
+```
+We can add a title,  which is another geom.  We several options for the title,
+
+-labs
+-ggtitle
+-theme
+
+```{R}
+ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+labs(title="Poverty and Employment Rate")
+```
+# theme
+
+The theme geom allows control of many characteristics of titles and labels
+     -font type, face type, size, color, justification, etc
+     
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier",size=14,hjust=0.5,face='italic'))
+p
+```
+We need to load the fonts to use the extra fonts and get rid of the error message
+
+There are a crazy number of available fonts,  loading them will take a bit of time.  Working with fonts looks a little fussy
+
+I think you only need to import fonts once,   
+
+```{R}
+require('extrafont')
+font_import()
+```
+
+```{R}
+fonts()
+loadfonts(device="win")
+```
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=14,hjust=0.5,face='italic'))
+p
+```
+We can use themes to control the labels on the x and y axis
+
+I tried using the "Stencil" font here,   kinda interesting but not a success
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'),
+          axis.title.x=element_text(family="Stencil",size=14,color='red'),
+          axis.title.y=element_text(family="Stencil",size=14,color='blue'))
+p
+```
+The axis range can be controlled
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'))
+p=p+xlim(70,100)+ylim(0,60)
+p
+
+```
+Other axis controls
+
+using axis.text within theme
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community))+geom_point(size=6)+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'),
+          axis.text=element_text(angle=90,color="blue",size=12,face="italic"))
+p=p+xlim(70,100)+ylim(0,60)
+
+p
+
+```
+
+Using text instead of markers
+
+We can replace the markers with the regions or names of neighborhoods
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'))
+p=p+xlim(75,100)
+p
+
+```
+We can adjust the figure size using some Rmarkdown commands
+
+```{R,fig.width=12,fig.height=8}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'))
+p=p+xlim(75,100)
+p
+
+```
+# Controlling Background and grid
+
+this can be done using a theme
+
+```{R,fig.width=12,fig.height=8}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'))
+p=p+xlim(75,100)
+p=p+theme_bw()
+p
+
+```
+We can use a theme to turn off the grids
+
+```{R,fig.width=12,fig.height=8}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+p=p+xlim(75,100)
+
+
+p
+
+```
+within theme,  panel.background controls the background color, the boundary color and the boundary weight
+ panel.background = element_rect(fill="White",color="Red",size=3))
+
+
+
+```{R,fig.width=12,fig.height=8}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+p=p+theme(plot.title=element_text(family="Courier New",size=16,hjust=0.5,face='italic'),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill="White",color="Red",size=3))
+p=p+xlim(75,100)
+
+
+p
+
+```
+#theme()
+
+This function allows control of how the title, axis labels, axis numbering, grids, border weights, background fill etc all look
+We can go in and adjust how these work in fine detail
+
+#Preset Themes
+
+There are a bunch of preset themes,  with many in the package ggthemes
+
+theme_tufte- minimalist in form
+theme_economist- based on the style of the magazine "The Economist"
+theme_stata- theme based on the Stata system
+theme_wsj - Wall street journal style
+theme_fivethirtyeight- from the 538 website
+theme_excel- mimics Excel   (why, oh why??)
+
+the documentation for ggthemes is a
+
+https://cran.r-project.org/web/packages/ggthemes/ggthemes.pdf
+
+```{R,fig.width=12,fig.height=8}
+require("ggthemes")
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ ggtitle("Poverty and Employment Rate")
+p=p+theme_wsj()
+p
+```
+# Setting a theme
+
+It is possible to set a theme in R and thereafter all the plots will use this theme
+
+Hmm... this means I really don't have an excuse for using the default graphics...I can do better
+
+```{R}
+theme_set(theme_gdocs())
+```
+
+```{R}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+
+p
+```
+# Customizing a theme
+
+We can see the definition of them
+
+```{R}
+theme_gdocs
+
+```
+
+We can then copy this function and modify it, to create a custom theme called theme_my_gdocs
+
+We could use this in later documents to allow ourselves to work with a customized plot by default,  we could set this up in our company colors for example.
+
+```{R}
+theme_my_gdocs<-function (base_size = 12, base_family = "sans") 
+{
+    ltgray <- "#cccccc"                     #these look like base 16 or hex codes for colors in rgb notation, for different grey                                                                    # tones
+    dkgray <- "#757575"
+    dkgray2 <- "#666666"
+    theme_foundation(base_size = base_size, base_family = base_family) + 
+        theme(rect = element_rect(colour = "black", fill = "white"), 
+            line = element_line(colour = "black"), text = element_text(colour = dkgray), 
+            plot.title = element_text(face = "plain", size = rel(20/12), 
+                hjust = 0.5, colour = dkgray), plot.subtitle = element_text(hjust = 0,                #set hjust=0.5, for centering  
+                size = rel(1), face = "plain", colour = dkgray), 
+            plot.caption = element_text(hjust = 0, size = rel(1), 
+                face = "plain", colour = dkgray), panel.background = element_rect(fill = NA, 
+                colour = NA), panel.border = element_rect(fill = NA, 
+                colour = NA), strip.text = element_text(hjust = 0, 
+                size = rel(1), colour = dkgray2, face = "plain"), 
+            strip.background = element_rect(colour = NA, fill = NA), 
+            axis.title = element_text(face = "plain", colour = "black",                             # set axis title to black    
+                size = rel(1)), axis.text = element_text(face = "plain", 
+                colour = dkgray, size = rel(1)), axis.line = element_line(colour = "black"),       # removed the line below,     
+             axis.ticks = element_blank(),                                                         #axis.line.y = element_blank(),
+            panel.grid.major = element_line(colour = dkgray),                                     # altered major and minor grid
+            panel.grid.minor = element_line(color=ltgray,linetype="dotted"), legend.background = element_rect(colour = NA), 
+            legend.text = element_text(size = rel(1), colour = dkgray), 
+            legend.title = element_text(size = rel(1), colour = dkgray2, 
+                face = "plain"), legend.key = element_rect(colour = NA), 
+            legend.position = "right", legend.direction = "vertical")
+}
+
+```
+
+```{R}
+theme_set(theme_my_gdocs())
+```
+
+```{R, fig.width=12,fig.height=8}
+p=ggplot(ndata, aes(x=Employment.Rate, y=Poverty.Rate,color=Community,label=Neighborhood))+geom_text()+ggtitle("Poverty and Employment Rate")
+
+p
+```
+
+# Summary/Take aways related to ggplot
+
+-Use ggplot() to set up the dataset and the aesthetics
+
+-Use geoms to specific what type of plot you want
+
+-use functions like xlim, ylim, xlab, ylab, labs to control the axis
+
+-set the title with ggtitle
+
+-use the inputs to functions to control sizes, fonts, line weights and colors
+
+-use themes to get fine grain control of the details
+
+-use defined themes to mimic other software packages or publications
+
+-create your own custom themes to control how plots look
+
+
+
+
+

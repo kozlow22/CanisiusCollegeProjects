@@ -1,0 +1,7 @@
+﻿Names,Bob,Mike,Clara,Roberto,Angelica,Fred
+Bob,0,1,0,0,1,0
+Mike,0,0,1,0,0,0
+Clara,0,0,0,0,1,1
+Roberto,1,0,1,0,0,0
+Angelica,0,0,1,0,0,0
+Fred,1,0,0,0,0,0

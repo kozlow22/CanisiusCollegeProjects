@@ -1,0 +1,351 @@
+---
+title: "Model Based Imputation 10_2"
+author: "HDS"
+date: "August 10, 2018"
+output: html_document
+---
+
+updated 4/26/2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Model Based Imputation
+
+after van der Loo and de Jonge, section 10.3
+
+Imputation is the process of estimated values for missing data points, or for values we know must be incorrect.  It replaces Na values in the data with an estimate based on the dataset itself.
+
+Ways to impute
+
+  -replace missing values with a constant
+  
+  -replace missing values with the mean or median value of the variable over all specimens
+  
+  -replace missing values by the average value of a group of values based on some other variable
+  
+         Example
+                missing house value by the average house value in the same city or town
+                
+                in practice this is done using a generalized linear model, with city as a predicting factor
+                
+  -replace the missing value by creating a predictive model based on other predictor variables in the data set
+         
+         Example
+                missing house value by the predicted value using city, house_size, lot_size, number_of_bedrooms, 
+                
+         Different types of models can be used,  general linear models (GLM) are basically the models typically used
+                in econometrics,   ie linear predictive models
+          
+        More advanced predictive models, such as tree based methods (random forests or boosted trees), or SVMs or 
+                even neural net models
+                
+  -replace the missing value by picking a value from a similar row in the data frame
+  
+          -"hot deck imputation"- random pick from similar rows- used by US census service
+          -k-nearest neighbors - using the average value from the k most similar rows
+          
+#Example Simputation
+
+using the simputation package,  which has a straight forward interface
+
+formula specification- allows specification of the response variable(s)  (y1,y2...)
+the predictors (x1,x2) as well as grouping variables (factors, g1,g2...)
+
+The general form looks like
+
+    y~x [ |g]
+
+    Where y is the variable to be predicted,  x is continuous (float or int) predictor and g is a factor predictor
+
+There can be multiple predictors
+
+    y~x1+x2 [|g1+g2]
+
+and we can specify multiple responses to the same set of predictors
+
+    y1+y2+y3~x1+x2 [|g1+g2]
+    
+There is a wild card, "." which means all variables in the data frame not mentioned
+
+    . ~x1+x2 [|g1+g2]
+
+means all variables not mentioned
+
+Note: Under the general linear model paradigm,  there is no real distinction between values x1,x2 and factors g1,g2 etc...
+but this is a more sophisticated view of modeling 
+
+#Here is a linear regression based approach to imputation
+
+Setting up the data set
+
+```{r}
+require("simputation")
+require("validate")
+data("retailers")
+retl=retailers[c(1,3:6,10)]
+head(retl,8)
+```
+###Mean Imputation
+
+The simplest approach is to replace all missing values with the mean value of that variables
+
+Note- the biggest problem with this approach is that it reduces the variance in the data set,  which we know is a problem
+
+The function call uses 1 as the predictor, meaning a constant value (the mean)
+
+we will replace all Nas in staff, turnover, other.rev and total.rev with their respective mean values
+
+```{r}
+mean_retl=impute_lm(retl,staff+turnover+other.rev+total.rev~1)
+head(mean_retl,8)
+```
+
+We could replace values with a group mean instead of the mean of all data,  this does create more variance, and more
+accurate estimates
+
+size is a categorical size measure, with 4 different sizes
+
+We can use 
+
+```{r}
+grp_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~1|size)
+head(grp_mean_retl,8)
+```
+
+We can also use size as an explicit factor in the model,  which is more of a generalized linear model approach
+
+```{r}
+grp_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~size)
+head(grp_mean_retl,5)
+```
+
+Here is imputation based on a full linear regression model, using several different predictors
+
+  staff and vat
+
+```{r}
+lm_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~staff+vat)
+head(lm_mean_retl,8)
+```
+In this case,  vat and staff are missing from several records- many in fact, 
+so there is no value estimated,
+
+Let's try staff and size
+
+```{r}
+grp_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~staff|size)
+head(grp_mean_retl,8)
+```
+
+###Stochastic Imputation
+
+This refers to the idea that we could add some modeled error term to each imputed value
+
+The idea is to add some error to the imputed values that is typical of the error in the known data points
+
+This should be more "truthful" or "realistic" in that it won't reduce the variance of the set as a whole
+
+simputation allows for e=0,  e=normal(0,sigma), where sigma is estimated from the data, or e is a resampling of the observed residuals,  ie a residual value chosen at random from the known set of residuals.
+
+   estimating sigma, the standard deviation, from the data and using it in the imputation is a form of 
+   "monte carlo simulation" that builds a model of the error and uses it to simulate the data
+   
+   randomly choosing a residual value from the data and using that as the error is an example of 
+   a randomization method called "bootstrapping",   specifically "residual bootstrapping"
+
+If you are pretty sure the residuals are not normal (ie not from a bell curve), than using bootstrapping is a better choice.
+
+Below is an example of using normally distributed error models in the imputation
+
+```{r}
+grp_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~size,add_residual="normal")
+head(grp_mean_retl,8)
+```
+
+Compare this result with the one immediately above, the estimated turnover value in 1 has changed
+
+```{r}
+grp_mean_retl=impute_lm(retl,turnover+other.rev+total.rev~staff|size,add_residual="observed")
+head(grp_mean_retl,8)
+```
+ 
+Note: The simulation using the estimated normal distributions of error is called a "parametric" simulation, the use of randomly chosen existing residuals is a "non-parametric" "bootstrap" simulation.   
+ 
+Both should be more "realistic" than not including residuals, but they may both distort the covariance structure in the data
+
+### M-Estimation
+
+These are a family of regression methods that places less weight on large residuals than the least squares method does
+
+The rlm() function carries out robust linear modeling, the default error function is Huber's Phi function with c=1.345 -Dang, somebody look this thing up!-
+
+```{r}
+m_retl=impute_rlm(retl,turnover+other.rev+total.rev~staff)
+head(m_retl,8)
+```
+
+I've messed around with robust linear estimation,   I suppose it make sense when you have some large residuals in the data
+
+This used to be a big deal back in the days before machine learning really lit up.
+
+###Lasso, Ridge and Elastinet Regression
+
+One problem with multiple regression using many variables x1,x2,x3 is that the model tends to overfit the data, being overly precise (much like drawing a curved line through all the data points).  The lasso, ridge and Elastinet models attempt to reduce this effect,  by penalizing models which become too complex.
+
+The alpha term in the model controls the form of the model used.   Alpha=0 is ridge regression,  Alpha=1 is lasso regression,  elastinet is the version with values of alpha between 0 and 1.
+
+Unless we have a lot of time, I'm not going into the theory of these styles of regression, you'll have to pick that up elsewhere (DAT 514, probably!). Remember that the simplication package makes this available
+
+Here's the function call:
+
+```{r}
+require("glmnet")
+m_retl=impute_en(retl,turnover~staff+size,alpha=0.5)
+head(m_retl,5)
+```
+
+Note: we can add residuals when using impute_en()
+
+###Classification and Regression Trees
+
+Using the classification and regression tree tools in caret
+
+```{R}
+c_retl=impute_cart(retl,turnover~.)
+head(c_retl,5)
+```
+We can use the more effective random forest model
+
+```{R}
+c_retl=impute_rf(retl,turnover~.)
+head(c_retl,5)
+```
+Lets' remove the vat as a predictor
+
+```{R}
+c_retl=impute_rf(retl,turnover~.-vat)
+head(c_retl,5)
+```
+
+Missing forest- works with missing values in predictors
+
+this is very handy,  it is an example of a predictor that will tolerate missing data
+
+There are several methods of creating predictors that tolerate missing values,   missing forests and histogram gradient boosted trees are two examples
+
+```{R}
+c_retl=impute_mf(retl,turnover~.)
+head(c_retl,5)
+```
+
+###Donor Imputation
+
+Using values for missing variables drawn from similar data points
+
+Random Hot Deck
+
+the pool variable controls how the random draw from the hot deck works
+"complete"-use only complete records as the donor pool, use multivariate imputation
+"univariate"- seperate draws for each missing variable- many members in pool, but messes up covariance
+"multivariate"- keeps covariance intact, but makes the pool smaller
+
+the Hot Deck Draw may be made within a group, of common factor values
+
+grouping here is by size
+
+```{r}
+
+hd_retl=impute_rhd(retl,turnover+other.rev+total.rev~size)
+head(hd_retl,5)
+```
+
+Here is the same approach with a univariate sampling
+```{r}
+
+hd_retl=impute_rhd(retl,turnover+other.rev+total.rev~size,pool="univariate")
+head(hd_retl,5)
+```
+
+Sequential hot deck
+
+We sort the data according the the variables, in the order listed, and then replace missing values based on the next value or the last value in the list
+
+This is an older method,   it doesn't make as much sense to me as ordinary hot deck or k nearest neighbors
+
+```{r}
+hd_retl=impute_shd(retl,turnover+other.rev+total.rev~size)
+head(hd_retl,5)
+```
+
+
+
+
+
+
+Sorted hot deck is an attempt to replace missing values with values from similar data points.
+
+
+### k nearest neighbors and predictive mean matching
+
+Find the k nearest neighbors using some metric of distance between specimens.
+
+Replace the missing value with the mean of the k nearest neighbors
+
+THe example here uses Gower's measure of similarity, there are many different ways to measure the similarity 
+of two data points,  this is an example of a "distance based statistic"
+
+```{r}
+knn_retl=impute_knn(retl,turnover+other.rev+total.rev~., k=5)
+head(knn_retl,5)
+```
+
+Predictive Mean Matching
+
+The donor is selected by comparing predicted donor values with model based predictions for the recipient missing values, sort of a mix of KNN and another predictive model. 
+
+The predictive model is used to estimate the values for all specimens and these estimates are used to form the K nearest neighbors, so the neighbor relation is based on the predictive model.  The donor is taken from one of the k nearest neighbors, chosen at random
+
+PMM is recently become popular
+
+```{r}
+pmm_retl=impute_pmm(retl,turnover+other.rev+total.rev~staff+size)
+head(hd_retl,5)
+```
+
+
+### Other miscellaneous approaches
+
+replace the values with a constant
+
+This might make sense if you are pretty sure that non-response on a question really means zero
+
+It would also help in cases where you want to use a piece of software that has a specialized code like "99999" to indicate missing values, instead of NA
+
+```{r}
+constant_retl=impute_const(retl,other.rev~0)
+head(constant_retl,5)
+```
+
+# Proxy Imputation
+
+It may be possible to replace one variable in a given row, with a different variable from the same row, when they are very similar.
+You can also replace one variable with a function of another
+
+Pretty clearly this is using some domain knowledge to indicate that this is a reasonable thing to do
+
+```{r}
+p_retl=impute_proxy(retl,total.rev~vat)
+head(p_retl,5)
+```
+
+the impute_proxy can be used to implement a number of simple calculations
+
+```{r}
+p_retl=impute_proxy(retl,turnover ~ median(turnover,na.rm=TRUE)|size)
+head(p_retl,5)
+```
+
+
+

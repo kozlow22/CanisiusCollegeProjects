@@ -1,0 +1,78 @@
+---
+title: "Regular_expressions_part2"
+author: "HDS"
+date: "10/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Regular Expresssions part two
+
+tolower(), toupper()
+
+Humans recognize that the same words with differents in capitalization mean the same thing.  But computers are storing these as different binary codings
+
+before you attempt to look for a match,  convert the data to all upper or lower,  often lower
+
+```{r}
+"bob"=="BOB"
+"bob"==tolower("BOB")
+toupper("bob")=="BOB"
+```
+
+Suppose we want to check a list of color values, and the only allowed color are red and blue
+
+We are going to allow r and b as valid abbreviations
+
+The check might look like this
+
+-use a tolower to clean up the values
+-look for set membership
+
+```{r}
+valid_colors=c('red','blue','r','b')
+color_entries=c("Red","Blue","r","R","B","BLUE","bl","b")
+tolower(color_entries)%in%valid_colors
+```
+
+#strsplit
+
+This function splits a string at the requested delimiter and returns the section before and after the split.
+It works well at breaking up sections of text
+
+```{r}
+a=strsplit("Name-Johnny","-")
+a[[1]][1]
+a[[1]][2]
+```
+```{r}
+a=strsplit(c("716-888-2587","514-818-3134","667-811-9212"),"-")
+print(a)
+matrix(unlist(a),ncol=3,byrow=TRUE)
+b=data.frame(matrix(unlist(a),ncol=3,byrow=TRUE))
+colnames(b)<-c("Area","Exchange","Last_4")
+b
+```
+#Approximate String matching
+
+The amatch function does approximate string match, it allows some level of error.
+
+It uses one of a number of string matching algorithms to measure how far apart two strings are.  This version is using an osa (Optimal String Alighnment) which is a Levenshtein distance, but also allowing transposition of adjacent characters, so each insertion, deletion, subsitution or swap of adjacent letters is one step
+
+```{r}
+require('stringdist')
+name_list=c("John Smith","Jon Smith","Johnny Smith","John Smyth","Juan Smith","Johnny Smythe","Jhon Smith","Jhon Smiht")
+amatch(name_list,"John Smith",method="soundex",maxDist=1)
+```
+```{r}
+phonetic(name_list)
+phonetic(c("Bob Jones","John Smith", "Jane Smythe"))
+```
+
+
+
+
+

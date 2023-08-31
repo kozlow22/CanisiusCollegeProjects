@@ -1,0 +1,32 @@
+---
+title: "Week 3 HW 2"
+author: "Mike Kozlowski"
+date: "2023-02-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Using Tax Assessment Roles:
+```{r}
+mydata = read.csv("C:\\Users\\Mike\\Documents\\DAT511\\2-1 class\\2020-2021_Assessment_Roll.csv", header = TRUE)
+```
+
+a) How many Council Districts are there?   What is the mean, median and standard deviation of property values for each council district?  What is the mean condition by Council District?
+```{r}
+length(unique(mydata$COUNCIL.DISTRICT))
+aggregate(mydata$TOTAL.VALUE, list(mydata$COUNCIL.DISTRICT), FUN=mean)
+aggregate(mydata$TOTAL.VALUE, list(mydata$COUNCIL.DISTRICT), FUN=median)
+aggregate(mydata$TOTAL.VALUE, list(mydata$COUNCIL.DISTRICT), FUN=sd)
+aggregate(mydata$OVERALL.CONDITION, list(mydata$COUNCIL.DISTRICT), FUN=mean)
+```
+
+b) What year appears to be the year the oldest buildings still on the tax rolls were built?  There are some properties with a year of 0 listed,  which is some form of error, remove these. Which of these has the highest assessment?  Who owns it?
+```{r}
+oldest = (mydata[mydata$YEAR.BUILT > 1,])
+min(oldest$YEAR.BUILT, na.rm = TRUE)
+
+mydata[mydata$YEAR.BUILT == 1780, ]
+```

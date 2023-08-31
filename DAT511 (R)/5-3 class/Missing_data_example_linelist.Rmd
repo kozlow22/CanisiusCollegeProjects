@@ -1,0 +1,279 @@
+---
+title: "R Notebook"
+author: "Mike Kozlowski, HDS"
+output:
+  html_document:
+    df_print: paged
+---
+Ebola outbreak data set
+
+Data from a predicted data set
+
+https://epirhandbook.com/en/missing-data.html
+
+Making use of the nanair package
+
+	
+```{r}
+require("VIM")
+require("validate")
+require('robustbase')
+require("lmtest")
+require("rio")
+
+infile="C:\\Users\\Mike\\Documents\\DAT511\\5-3 class\\linelist_cleaned.rds"
+
+linelist=import(infile)
+```
+
+This is a datase from a simulated ebola infection event, it is in a slightly odd data format, an rds or r data set file
+
+We will look at it using the tools in VIM, but also another
+package called naniar,  a tool to analyze Na values
+
+What do we have in the data:
+
+```{R}
+head(linelist)
+```
+```{R}
+summary(linelist)
+```
+Just to simplify things a bit, let's drop some data
+
+time_admission, lon, lat, case_id -these don't mean much to us
+
+```{R}
+linelist=linelist[, !(names(linelist) %in% c("time_admission","lon","lat","case_id"))]
+```
+
+
+```{R, fig.width=15}
+aggr(linelist,cex.axis=0.7)
+```
+#Question/Action
+
+What are the top five most often missing items in this data set?
+
+The top five most often missing items are date_infeection, date_outcome, outcome, infector, and source.
+
+What are the top five most common combinations of missing items?
+
+The top five most common combinations are date_infection, date_outcome, outcome, infector, and source.
+
+The nanair package has an alternative way to show missing data information
+
+```{r}
+require(ggplot2)
+require(tidyverse)
+require(naniar)
+gg_miss_var(linelist)
+```
+
+# Using VIM to look at patterns or shifts in data due to missing values
+
+```{R}
+#windows()
+VIM::pbox(linelist)
+```
+
+# Question/Action
+
+What variable in this plot shows a large shift associated with missing data values?
+
+Infector has such a large shift that the scale is in scientific notation.
+
+Describe what appears to be happening, and whether or not this makes sense.
+
+It is happening in columns involving age, which tells me that missing age values are causing a huge shift in the data. This makes sense as age has a small range of ~0-100, so if a value were to be an error integer in the hundreds of thousands, this could occur.
+
+We can look at a margin plot of age in years and temp
+
+Here is the VIM version
+
+```{R}
+mydat=linelist[,c("age_years","temp")]
+VIM::marginplot(mydat,las=1,pch=16)
+```
+Here is the nanair version of the same plot
+
+```{R}
+ggplot(
+  data = linelist,
+  mapping = aes(x = age_years, y = temp)) +     
+  geom_miss_point()
+```
+#Question/Action
+
+Based on your answer to the last question, about which variable seems to show the largest shift associated with missing data, produce both styles of margin plots as a way of investigating the relationship you saw earlier.
+
+```{r}
+ggplot(
+  data = linelist,
+  mapping = aes(x = date_infection, y = temp)) +     
+  geom_miss_point()
+```
+
+```{r}
+mydat=linelist[,c("date_infection","temp")]
+VIM::marginplot(mydat,las=1,pch=16)
+```
+
+We use a nanair plot of missing rates as a function of a categorical, such as outcome
+
+```{R}
+linelist %>% 
+  gg_miss_var(show_pct = TRUE, facet = outcome)
+```
+# Question/Action
+
+Use this type of faceting by a factor to look at another factor that might related to missing values
+
+```{R}
+linelist %>% 
+  gg_miss_var(show_pct = TRUE, facet = source)
+```
+
+#visualizing where in the data set there are missing values
+
+The visdat function can show us the patterns of missing data and the data types
+
+```{R}
+require(visdat)
+vis_dat(linelist)
+```
+
+```{R}
+vis_miss(linelist)
+```
+# Question/Action
+
+Sort the data set by some value,  maybe age, date of admission, or some other variable.
+
+
+Then send the ordered data set results into vis_miss so the missing information is ordered- do you see any patterns?
+
+```{r}
+sortedData <- linelist[order(linelist$date_hospitalisation),]
+vis_miss(sortedData)
+```
+It appears that infector, source, and date_infection seem to match when data is missing, as well as fever, cough, aches, and vomit.
+
+We can heatmpa the rates of missing information by some factor as well
+
+```{R}
+gg_miss_fct(linelist, age_cat5)
+```
+
+We can create a "shadowed" data set that has columns that indicate if there are
+missing values in other columns
+
+```{R}
+shadowed_linelist <- linelist %>% 
+  bind_shadow()
+
+names(shadowed_linelist)
+```
+
+
+We can then create histograms or time series of the distributions of missing data
+
+```{R}
+ggplot(data = shadowed_linelist,          # data frame with shadow columns
+  mapping = aes(x = date_hospitalisation, # numeric or date column
+                colour = age_years_NA)) + # shadow column of interest
+  geom_density()                          # plots the density curves
+```
+
+Looking at where in a distribution the data is missing
+
+```{R}
+ggplot(data = shadowed_linelist, aes(x=age_years,fill=temp_NA))+geom_histogram()
+```
+
+#Modelling missingness
+
+We can build a model to predict when data will be missing
+
+The function add_prop_miss adds a column to the data that computes the proportion of missing data on the line and adds that to the last column
+
+```{R}
+linelist2=add_prop_miss(linelist)
+head(linelist2)
+```
+
+It is then possible to build a predictive model (a regression tree) that will predict the value of prop_miss_all,  in other words the proportion of missing data based on the other variables
+
+In the discussion of imputing, we saw how predictive models could be used to impute missing values.
+
+In this application, we are using the predictive model to predict when a particular row in the data frame will have missing information. 
+
+Models such as regression trees can tell us which variables are being used to make predictions,  in a regression tree these are called the "importance" value of each predictor variable.  We fit a regression tree to the model and then use the importance values to determine which of the predictors is informative about when data is likely to be missing.   Then we can go back to the visual methods to understand what the relationship is.
+
+Below, we fit a regression tree to the data to predict the proportion missing variable, using all the other variables, and then look at the summary() of the model to find the importance values.  The summary of this model is quite long, we have to dig through it a bit to find the importances.
+
+
+```{R}
+require("rpart")
+
+
+rmodel=rpart(prop_miss_all~., linelist2)
+```
+
+The model importance values tell us which variables are effective at predicting missing data
+
+
+```{R}
+summary(rmodel)
+```
+#Looking at this summary, 
+
+Variable importance
+            infector                 temp                fever               source 
+                  79                   12                    5                    1 
+      date_infection             hospital date_hospitalisation 
+                   1                    1                    1 
+
+the term that predicts missing data most effectively are the infector and temp values
+
+
+# Looking at the correlation of missing entries
+
+We have the dataframe shadowed_linelist which has columns added to indicate whether or not the corresponding variables are missing or not.   We could look at this to see the extent to which missing values are correlated with other missing values
+
+```{R}
+colnames(shadowed_linelist)
+```
+In the shadowed_linelist,  columns 27-52 have the counts of the missing data,  lines 1-26 have the data
+itself
+
+What we want to do is compute the correlation matrix of the NA count columns and show it as a heatmap
+
+This allows us to see the extent to which missing entries are paired with other missing values
+
+```{R,fig.width=12,fig.height=10}
+require("reshape2")
+
+#force the na values to be O and the non-na to be 1
+
+nacor=cor((shadowed_linelist[,27:52]=="!NA")*1.0)
+
+# replace all the values on the diagonal with zeros
+# the diagonals are all ones,  and this distorts the heatmap
+
+diag(nacor)<-0
+
+# melted version of the matrix of data, use this in ggplot to create a heatmap
+melted_nacor=melt(nacor)
+
+ggplot(data=melted_nacor,aes(x=Var1,y=Var2,fill=value))+geom_tile()+theme(axis.text.x=element_text(angle=90))
+```
+# Question/Action
+
+What are the high correlation pairs or groups in the above diagram?  
+
+date_infection with infector and source, age with it's related fields of age_unit, age_years, age_cat, and age_cat5, source with infector, and the symptoms as a group, being fever, chills, cough, comit, and temp.
+
+Do these make sense?   Are they likely to have a common cause?  Why?
+
+These definitely make sense - if you do not know the infector or source, you're unlikely to know when the person was infected, as they lack that information. Age being correlated to age related fields all make sense, source with infector being correlated is logical as well, and if the disease is likely to have a very common base of symptoms, it would make sense that patients are expected to show all symptoms, and it makes sense that patients that are missing some symptoms are missing others.

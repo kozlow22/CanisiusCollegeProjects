@@ -1,0 +1,164 @@
+---
+title: "Visualing and Testing Missing Data 10.1.2"
+author: "HDS"
+date: "August 10, 2018"
+output: html_document
+---
+
+updated 5/3/2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Updated and checked 5/2/2023
+
+
+## Visualizing and Testing for Patterns in Missing Data using R
+
+van der Loo and de Jonge, section 10.1
+
+Using the VIM package by van der Loo and de Jonge to visualize missing data, and look for patterns in missing data
+
+Note, this does require the robustbase package,
+
+VIM had a lot of required packages that did not seem to install with it
+
+We will use the retailers data set from validate
+
+```{R}
+require("validate")
+data("retailers")
+str(retailers)
+```
+
+We will just look at the data in columns 3-9 of the retailers data set,
+
+so staff, turnover, other.rev, total.rev,  staff.costs, total.costs,  profit and vat
+
+the function VIM:aggr (aggregate) will show us a table of the portion of missing data for each variable and a graph of this information
+
+It will also show us a graph indicating the most common combinations of missing data, to allow us to tell where there are patterns.
+
+```{r}
+require("VIM")
+require("validate")
+require('robustbase')
+require("lmtest")
+data("retailers")
+
+VIM::aggr(retailers[3:9],sortComb=TRUE,sortVar=TRUE,only.miss=TRUE,cex.axis=0.7)
+
+```
+
+Clearly, other.rev is missing a good deal of the time, 60%.  It looks like 28% of the data is actually complete
+So, if we don't impute, we have to throw out some 60% of the data, or not use the other.rev column- we should definite talk to the 
+domain specialists about this...
+
+The plot shows the combinations of missing data (red) and data present (blue).  The bars on the right side show the relative rates of occurrences of each category.  The most common is other.rev only missing, then other.rev+staff.costs
+
+### Looking for dependencies in Missing data
+
+We would like to know if missing data in any variable is a predictor for the value of other variables.
+
+We can do this by plotting the dependence of a given variable on a factor, which is whether or not the a given variable is missing
+
+This is a relatively complex plot, there is a lot going on here
+
+
+Let's try looking staff costs, which is the 5th variable in retailers[3:9]
+```{r}
+# this is an interactive plot and will not display well within the notebook, so we need to open a window in the operating
+# systme to hold the interative plot.   Use the command quartz() to do this on a Mac or windows() on a windows computer
+windows()
+VIM::pbox(retailers[3:9],pos=5)
+```
+This doesn't run well in the rmarkdown window- open a quartz() or window() and run it from the console
+
+The diagram shown here is missing a lot of information, there is a frequency bar along the bottom of the plot listing the counts of each type of results.  If you run this in a separate window,  you can also interactively "page" through the variables
+
+The left most box, with no label at the bottom is the distribution of staff.costs.  Underneath, there is a small table with a black entry and red entry.  The red entry indicates the number of missing values of staff.costs and the black value indicates the number of valid staff.cost values in the dataset.  In this caser, there are 60 data points, and 10 missing points.   The barplot immediately above this shows the values of all known staff.cost.
+
+Looking at the next two paired boxplots, we see they are labeled "obs in staff" and "missing in staff", so these pair of plots refers to the variable "staff".    The barplots show the values of staff.costs when the staff variable is valid and when it is missing.   The table below the graph shows the counts of when both staff is valid and when staff.costs is valid (upper left number in the table, in blue, 54).  On the lower right is the count of when both staff.costs is missing and when staff is missing (dark red, value is 0).   The lower left is the count when staff.costs is missing, but staff is present (red, value is 10),  on the upper right is the count where staff is missing but staff.costs is valid (6).
+
+I found it a bit odd that staff and staff.costs are never both missing, for example.
+
+Looking at the barplot above,  there is no difference in the staff.costs value when staff is missing versus when staff is present.
+
+From this picture, it doesn't look the missing staff.costs depend on most variables, but they do seem to correlated with missing total costs and missing profits  (see the last two plots on the right side)-  this seems to make sense, if staff.costs are missing, total casts are likely to be as well, and so is profit.
+
+When total.costs is missing,  staff.costs tends to be high,  when profit is missing,   staff.costs again tend to be high.
+
+If you click on the label of the y-axis (on staff.costs), the plot will change to "total.rev" and show you the same relationships.  Repeated clicking will walk you through the other variables.
+
+Close the graphics window when you are done looking at it.
+
+# Staff
+
+The text uses the staff variable as their example, here is that plot.
+
+This is probably the most interesting of all the missing data plots shown.
+
+```{r}
+windows()
+VIM::pbox(retailers[3:9],pos=1)
+```
+It certainly looks like the staff variable depends strongly on "missing.in turnover" and maybe miss in other.rev"
+
+The book advocates a t test, based on the log of the staff value (log reduces the skew in economic data)
+
+Be careful using t-tests or other hypotheses test to attempt to confirm the patterns seen in something like the examination of missing data.
+
+t-tests are really meant to be used based on a-priori hypotheses,  hypotheses stated and planned prior to looking at a given set of data.  Once we have run something like VIM::aggr() and looked at the patterns in the data, this is no longer an a-priori hypothesis, but now one based on our observations of many "implicit" comparisons  in the data set
+
+The graph above is really a comparison of the dependence of staff on 6 different variables.  If we tested the dependence of all of them, at a convential 5% alpha, the chance of no false positives would be (0.95)^6 = 73.5%, so we expect a false positive rate of 26.5%
+
+With 6 tests, to get an overall false positive rate of 5%,  we want (x)^6=0.95  for the 6 implicit tests we made, so we want the alpha level to be 
+1-0.95^(1/6)= 0.0085 for each test of the 6, so the overall error level is 0.05 = 5% for all 6 test.
+
+This is called a Bonferroni correction for repeated tests- failure to think about the Bonferroni problem has caused many, many problems.   People lose jobs over it (literally)
+
+Now, we are really only running one t-test,  but we made the decision to do that based on the graph above, which really shows us 6 tests
+
+```{r}
+t.test(log(staff)~is.na(other.rev),data=retailers)
+```
+
+This t-test is giving us t=2.7464, p=0.008572,  which is ordinarily a pretty solid significance at the p=0.05 (5%) level, but in our case, we wanted the Bonferroni corrected alpha to be 0.0085,  so this is a marginally significant result, not a strongly significant one.   
+
+The book claims this is a t-test with a low probability of error (p<0.01)-The book is overconfident here,  they failed to think about the Bonferroni aspect of this problem,  since we stated the hypothesis only after looking at a plot of the data involved, making it an a-posteriori test
+
+a-priori-     prior to taking measurements
+a-posteriori- post measurements
+
+These are very much Bayesian statistical concepts,  they are related to interpreting statistics as statements of belief, or knowledge, of data
+
+Problems related to Bonferroni issues and Bayesian effects are so prevalent in Data Analytics, that most workers now insist on a strict segregation of training data and test data.  Models and procedures are developed strictly using the test data and only the final product is applied to the test set,  the performance of the whole analysis system is then based on how it performs on the test data.
+
+If you fall prey to Bonferroni errors, the performance on the test set will suffer (on average, over multiple test sets)
+
+##Margin Plots
+
+This is a way of looking at the relationship between two variables to see
+
+-If the values seem to dependent on one another (correlated)
+-If each is dependent on missing values in the other
+
+```{R}
+mydat=log10(abs(retailers[c(3,5)]))
+VIM::marginplot(mydat,las=1,pch=16)
+```
+
+This plot shows the biplot of other.rev vs staff (blue dots int center)- there does look to be trend
+
+The boxplots along the side show the distribution of the values as a function of missing data in the other variable.
+
+Here it looks like other.rev doesn't shift much with missing staff, probably this data is just Missing at Random
+
+But staff may be shifting depending on missing other.rev
+
+The number missing is shown in red, the red dots show the points for the missing data values.  Note the outliers in staff when other.rev is missing
+
+
+
+

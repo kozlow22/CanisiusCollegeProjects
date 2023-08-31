@@ -1,0 +1,136 @@
+---
+title: "Breaking Up Strings"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Break Apart Strings
+
+Also called parsing
+
+We often will need to break up strings to extract portions of them.
+
+Suppose we had a set of strings for each customer
+
+"Name: Joe Smith"
+"Address: 3030 Main St"
+"City: Buffalo"
+"State: NY"
+
+And we wanted to find the state Joe Lives in.
+
+Here the ":" is used as delimiter
+
+We could first find the line that has the State
+
+```{r}
+customer=c("Name: Joe Smith",
+"Address: 3030 Main St",
+"City: Buffalo",
+"State: NY")
+```
+
+We will use grep to find the line in customer that has the State information
+
+```{r}
+state_loc=grep("State",customer)
+state_loc
+```
+Then we want to split the string apart to get the value of the state
+
+state_loc tells us which line has the state, we can then split it on the delimiter ":"
+
+```{r}
+temp=strsplit(customer[state_loc],":")
+temp
+```
+strsplit returns something a bit odd, what is this?
+
+```{r}
+class(temp)
+```
+It is a list,  where each entry is the result of splitting a single string.  We only split one string so there is only one item in the list
+
+
+```{r}
+(temp[[1]])
+```
+To get at the state, we want the 2nd string here in the first location of the list
+
+```{r}
+my_state=temp[[1]][2]
+my_state
+```
+We hae a leading space, we can remove that we can use trimws to remove leading and trailing whitespace
+
+```{r}
+require("stringi")
+my_state=trimws(my_state)
+my_state
+```
+The other approach to extracting text from a string is use the substr() function that extracts characters by location from the string.  So we need to know the location of the state in the string.
+
+We know the state is in the string customer[state_loc], we need the location within the string
+
+we can use regex to find the location of ": " that starts the state, and use length(customver[state_loc]) as the end location
+
+loc1=regexpr(": ",customer[state_loc]) will tell us the location of of ": ",  the state starts two characters after that
+
+```{r}
+require("stringr")
+loc1=regexpr(": ",customer[state_loc])
+print(loc1)
+loc2=str_length(customer[state_loc])
+temp=substr(customer[state_loc],loc1[1]+2,loc2)
+temp
+```
+The approach based on using regexpr is a bit more complicated, but strsplit
+allows only one simple delimiter,  regexpr allows use of a complex regular expression to
+locate the segment of string desired.
+
+If you wanted to extact the number from a string like these
+
+"Bob has 12 new potatoes"
+
+"Sue purchased 35 tomatoes"
+
+Splitting these on space doesn't help much, we need to know where the number is
+
+```{r}
+
+a="Bob has 12 new potatoes"
+
+b="Sue purchased 352 tomatoes"
+
+n_loc=gregexpr('[[:digit:]]+',a)
+print(n_loc)
+
+```
+Here n_loc is an integer with "attributes"
+
+```{r}
+print(n_loc[[1]])
+print(attributes(n_loc[[1]]))
+```
+
+to extract the number, we need the location of the first digit and the length, 
+
+```{r}
+
+loc1=n_loc[[1]]
+loc2=attributes(n_loc[[1]])$match.length + loc1-1
+substr(a,loc1,loc2)
+
+```
+Will this work for string b?
+
+```{r}
+n_loc=gregexpr('[[:digit:]]+',b)
+loc1=n_loc[[1]]
+loc2=attributes(n_loc[[1]])$match.length + loc1-1
+substr(b,loc1,loc2)
+
+```

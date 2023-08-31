@@ -1,0 +1,205 @@
+---
+title: "Final Exam"
+author: "Mike Kozlowski"
+date: "2023-05-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(ggfortify)
+library(pivottabler)
+library(validate)
+library(errorlocate)
+library(dcmodify)
+library(deductive)
+library(simputation)
+```
+
+a) Load the data set, make sure all data types are correctly set
+
+```{r}
+infile="C:\\Users\\Mike\\Documents\\DAT511\\Final\\justetf_mod.csv"
+mydata=read.csv(infile)
+str(mydata)
+mydata$fundProvider<-unlist(lapply(mydata$fundProvider,as.factor))
+mydata$quote<-unlist(lapply(mydata$quote,as.numeric))
+mydata$fundCurrency<-unlist(lapply(mydata$fundCurrency,as.factor))
+mydata$domicileCountry<-unlist(lapply(mydata$domicileCountry,as.factor))
+mydata$currencyRisk<-unlist(lapply(mydata$currencyRisk,as.factor))
+mydata$UCITSCompliance<-ifelse(mydata$UCITSCompliance=="Yes",1,0)
+mydata$UCITSCompliance<-unlist(lapply(mydata$UCITSCompliance,as.logical))
+mydata$securitiesLending<-ifelse(mydata$securitiesLending=="Yes",1,0)
+mydata$securitiesLending<-unlist(lapply(mydata$securitiesLending,as.logical))
+str(mydata)
+```
+
+b) Do a basic data summary
+
+```{r}
+summary(mydata)
+```
+I'm not sure what the fields "isin" and "wkn" are, but I assume they are related to some kind of designation on the stock market. Name is fairly obvious, it is the name of the fund, with the ticker being the ticker that represents that fund on the stock market, and the fund provider is the name of the company that manages that fund. Quote is the quote price to own a share on that particular day listed in quoteDate, while quote52Low and quote52High represent the lowest and highest quote price in the previous 52 weeks. ytdReturnCUR, threeMonthReturnCUR, monthReturnCUR, sixMonthReturnCUR, yearReturnCUR, weekReturnCUR, yearReturn1CUR represent different time interals for the rate of return on the funds. Fees represent the maintenance/management fee that the fund managers take as part of managing which stocks are part of the fund. fundCurrency shows what currency each fund is traded in, while domicileCountry represents where the fund is managed from. inceptionDate shows when the fund was started, currencyRisk shows whether the fund is hedged against losses or not, UCITSCompliance and SecuritiesLending are boolean values that show if that fund lends out securities or if they comply with UCITS. 
+
+Question: What column was added?
+
+The quoteRange column was added, I don't recall it from the earlier version of this file.
+
+Question: Do you see any outliers or obvious errors?
+
+Both quote and quoteRange contain negative numbers. While it's normal for a field like rate of return to contain negative numbers, the quote price for a share of an ETF should never be a negative number; you will never get paid to gain ownership shares of an ETF.
+
+c) Show boxplots of the basic data
+
+```{r}
+boxplot(mydata$quote, xlab="Quote", ylab="Value")
+boxplot(mydata$quote52Low, xlab="52 Week Low Quote", ylab="Value")
+boxplot(mydata$quote52High, xlab="52 Week High Quote", ylab="Value")
+boxplot(mydata$ytdReturnCUR, xlab="Year to Date Rate of Return", ylab="Value")
+boxplot(mydata$fees, xlab="Fee", ylab="Value")
+boxplot(mydata$yearVolatilityCUR, xlab="Volatility", ylab="Value")
+boxplot(mydata$threeMonthReturnCUR, xlab="3-Month Rate of Return", ylab="Value")
+boxplot(mydata$monthReturnCUR, xlab="Monthly Rate of Return", ylab="Value")
+boxplot(mydata$sixMonthReturnCUR, xlab="6-Month Rate of Return", ylab="Value")
+boxplot(mydata$yearReturnCUR, xlab="Yearly Rate of Return", ylab="Value")
+boxplot(mydata$weekReturnCUR, xlab="Weekly Rate of Return", ylab="Value")
+boxplot(mydata$yearReturn1CUR, xlab="Yearly Rate of Return", ylab="Value")
+boxplot(mydata$quoteRange, xlab="Quote Range", ylab="Value")
+```
+Certain columns show that some errors are present, such as ytdReturnCUR having a value past -120 on the chart when that would represent a total loss of more than 100%, which is impossible. Additionally, quote and quoteRange showing values in the negative are not possible. Everything else appears at first glance to be in order.
+
+Question/Action: Show me a boxplot that shows yearReturn grouped by currencyRisk
+
+```{r}
+boxplot(mydata$yearReturnCUR ~ mydata$currencyRisk)
+```
+
+Question/Action: Show me two other interesting box plots with a numeric variable
+
+```{r}
+#Graphing the volatility of funds based on the domicile, along with graphing the 6 month rate of return based on the manager of the fund
+par(cex.axis=0.8)
+boxplot(mydata$yearVolatilityCUR ~ mydata$domicileCountry, las=2, xlab='')
+boxplot(mydata$sixMonthReturnCUR ~ mydata$fundProvider, las=2, xlab='')
+```
+
+
+d) Show a histogram of one variable, specifically ytdReturn
+
+```{r}
+#I had to avoid the error data in this case to make a readable graph
+hist(mydata$ytdReturnCUR[mydata$ytdReturnCUR>-1],xlab="Year-To-Date Rate of Return", xlim=c(-0.5,1))
+```
+
+e) Create a cross-table (aka Pivot Table) showing the number of funds per several other factor variables (fund provider, domicile, fund currency, etc)
+
+```{r}
+pt <- PivotTable$new()
+pt$addData(mydata)
+pt$addColumnDataGroups("fundCurrency")
+pt$addRowDataGroups("fundProvider")
+pt$defineCalculation(calculationName="total", summariseExpression="n()")
+pt$evaluatePivot()
+pt$renderPivot()
+```
+
+Question: Create a cross table of counts by the factors currencyRisk and securitiesLending
+
+```{r}
+pt2 <- PivotTable$new()
+pt2$addData(mydata)
+pt2$addColumnDataGroups("securitiesLending")
+pt2$addRowDataGroups("currencyRisk")
+pt2$defineCalculation(calculationName="total2", summariseExpression="n()")
+pt2$evaluatePivot()
+pt2$renderPivot()
+```
+
+f) Show PCA plot, using all the real number variables. Be ready to color code the PCA plot using one of the factors
+
+```{r}
+mydata.pca <- prcomp(na.omit(mydata[,c(5,6,7,8,9,10,12,14)]), center=TRUE, scale=TRUE)
+mydata.pca.plot <- autoplot(mydata.pca, data=na.omit(mydata[,c(5,6,7,8,9,10,12,14,18)]), colour='domicileCountry')
+mydata.pca.plot
+```
+When you run the PCA,  use the scale.=TRUE option in prcomp or cor=TRUE in princomp,  so the data is scaled to a variance of 1.   Explain:  What impact does this have?  Why would I ask you to do this?
+
+By scaling everything to having a variance of 1, you can compare different variables with different magnitudes without it making the graph completely unable to be read. Graphing the relationships between values within a set is easier to compare to other sets without having to worry about issues of scale.
+
+For the PCA,  create a second version of the data set that has no rows with Nas.    Determine how many rows were removed after you create this
+
+I was unable to create a PCA with values containing NAs, so the first one that I made already has no NAs. However, the rows that were removed is something that I can see:
+
+```{r}
+nrow(mydata)
+nrow(na.omit(mydata))
+```
+
+Create two different plots of the PCA scores on axis 1 and 2 (ie standard PCA plots),  coloring by currencyRisk and by domicileCountry
+
+I already have the first one colored by domicileCountry, so I'll do the next one by currencyRisk
+
+```{r}
+mydata.pca <- prcomp(na.omit(mydata[,c(5,6,7,8,9,10,12,14)]), center=TRUE, scale=TRUE)
+mydata.pca.plot <- autoplot(mydata.pca, data=na.omit(mydata[,c(5,6,7,8,9,10,12,14,22)]), colour='currencyRisk')
+mydata.pca.plot
+```
+Describe what pattern you see.
+
+First off, there's no real discernable pattern when it comes to the domicileCountry. For currencyRisk, it appears that only the unhedged funds show an extreme variation from having extremely low PC1 and high PC2. Additionally, hedged funds are generally speaking in a much tighter cluster of results, likely because of hedging cutting back on profits while also shielding from losses, thus making them have a lower amount of volatility.
+
+g) Use a validator structure to carry out a rule-based validation
+
+```{r}
+rules <- validator(quote52High-quote52Low==quoteRange,
+                   quote52Low < quote52High)
+validmydata <- confront(mydata,rules)
+head(validmydata)
+```
+
+h) Run an error localization using some basic rules
+
+```{r}
+basicRules <- validator(quote52High-quote52Low==quoteRange)
+lemydata <- locate_errors(mydata,basicRules)
+summary(lemydata)
+```
+
+i) Be ready to use the functional relation rule
+
+```{r}
+relationrule<-validator(isin~name+wkn)
+relationmydata=confront(mydata,relationrule)
+summary(relationmydata)
+```
+
+j) Do error corrections, one being a rule-based correction
+
+```{r}
+mymod=modifier(
+  if(domicileCountry=='Erin')
+  {
+    domicileCountry<-'Ireland'
+  }
+)
+mod_data=modify(mydata,mymod)
+table(mydata$domicileCountry)
+table(mod_data$domicileCountry)
+```
+
+k) Do an imputation on one variable using a regression model or a random forest model
+
+```{r}
+mydata.imp=impute_lm(mydata, quote ~ quote52Low + quote52High)
+summary(mydata.imp)
+```
+
+Impute all three of these variables using a random forest model
+ 
+	monthReturnCUR, sixMonthReturnCUR, threeMonthReturnCUR
+
+```{r}
+mydata.imp2=impute_rf(mydata, monthReturnCUR + sixMonthReturnCUR + threeMonthReturnCUR ~ fees)
+summary(mydata.imp2)
+```

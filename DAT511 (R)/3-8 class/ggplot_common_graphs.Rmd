@@ -1,0 +1,316 @@
+---
+title: "Common_ggplot_geoms"
+author: "HDS"
+date: "2023-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Producing different types of plots with ggplot and geoms
+
+Get the neighborhood data for Buffalo
+
+# Data Set- Neighborhoods in Buffalo
+
+```{R}
+infile="C:\\Users\\hdavi\\Dropbox\\Data_Analytics\\DAT511_Data_Cleaning\\Lectures_Spring_2023\\Examples\\Neighborhood_Metrics.csv"
+ndata=read.csv(infile,stringsAsFactors=TRUE)
+head(ndata)
+```
+
+Load ggplot and set up to use the WSJ theme colors
+
+```{R}
+require(ggplot2)
+require(ggthemes)
+theme_set(theme_wsj())
+```
+
+#Plots to look at the behavior of a single variable
+
+Many times, we will want to focus on a single variable to understand the distribution of that single variable,  or how it changes relative to a factor
+
+https://r-graph-gallery.com/index.html
+
+# Boxplot
+
+Median income by Community
+
+Boxplots show the median value, the 25% and 75% values and the 95% range, plus any outliers
+
+```{R}
+ggplot(ndata,aes(x=Community,y=Median.Income))+geom_boxplot()
+```
+
+#Violin Plot
+
+This is a variant on the Boxplot, in which the width of the outline shows the number of values a the vertical height
+
+```{R}
+ggplot(ndata,aes(x=Community,y=Total.Persons))+geom_violin()+ggtitle("Total Persons per Neighborhood by Community")
+```
+
+#Density Plot
+
+This is a histogram normalized to 1, so the area under the curve is equal to 1
+
+The curve height is an estimate of the probability of taking on the value along the x-axis
+
+```{R}
+ggplot(ndata,aes(x=Median.Income))+geom_density(fill="blue")+ggtitle("Median Income, Communities")
+```
+# Basic Histogram
+
+```{r}
+ggplot(ndata,aes(x=Median.Income))+geom_histogram(binwidth=5000)+ggtitle("Histogram of Median Income")
+```
+
+#Comparing two variables, Looking at Correlation or Covariance
+
+Working with two variables at a time is called bivariate statistics
+
+More than two is multivariate statistics.
+
+Bivariate
+
+These plots are meant to reveal the relationship between two variables
+
+#Scatter plots
+
+We've seen these before....
+
+The WSJ theme cut off the x and labels, for reason I don't understand, so I changed theme here
+
+```{R}
+ggplot(ndata,aes(x=Percent.Age.65..,y=Poverty.Rate))+geom_point()+xlab("Percent over 65")+ylab("Percent Poverty")+ggtitle("Poverty and Age")+theme_economist_white()
+
+```
+# Adding a linear trend to a scatter plot
+
+With the trend and the confidence interval on the trend
+
+The method used here was a linear curve fit,  and the confidence interval showing the level of uncertainty in the model is also show.
+
+Other approaches to estimating the curve are possible
+
+```{R}
+ggplot(ndata,aes(x=Percent.Age.65..,y=Poverty.Rate))+geom_point()+xlab("Percent over 65")+ylab("Percent Poverty")+ggtitle("Poverty and Age")+theme_economist_white()+geom_smooth(method=lm,color="red",fill="grey",se=TRUE)
+```
+# 2D density plot,  shows the number of points within a binned region of the plot
+
+
+```{R}
+ggplot(ndata,aes(x=Percent.Age.65..,y=Poverty.Rate))+geom_hex(bins=8)+xlab("Percent over 65")+ylab("Percent Poverty")+ggtitle("Poverty and Age")+theme_economist_white()
+```
+This data set has relatively few points,  so this plot doesn't look great
+
+Let's try it with the Iris data set
+
+The color of each hexagram shows the number of points within that region
+
+```{R}
+data(iris)
+ggplot(iris,aes(x=Petal.Length,y=Petal.Width))+geom_hex(bins=25)+ggtitle("Iris data")+theme_economist_white()+scale_fill_continuous(type='viridis')
+```
+
+# Bubble Plots
+
+The Bubble plot is a scatter plot, but with a third variable controlling the size of the symbol-so this shows the interaction of three variables
+
+We simple use a variable to control size (Percent.Living.Alone in this case)
+
+We will also set color to the community
+
+the parameter alpha controls the transparency of the data points
+
+```{R, fig.width=16, figure.height=16}
+ggplot(ndata,aes(x=Percent.Age.65..,y=Poverty.Rate, size=Percent.Living.Alone, color=Community))+geom_point(alpha=0.7)+xlab("Percent over 65")+ylab("Percent Poverty")+ggtitle("Poverty and Age")+scale_size(range = c(3, 18), name="% living alone")
+#+theme_economist_white()
+```
+
+
+
+
+
+
+
+
+
+# Heatmaps
+
+Heatmaps are a simple way to visualize the correlation patterns in data, the
+extent to which two variables are correlated or change in unison
+
+We want to use continuous variables (not factors) in a heat map
+
+Looks look at these variables
+
+Poverty.Rate
+Employment.Rate
+Percent.Age.65..
+Labor.Force.Participation.Rate
+Percent.Living.Alone
+Percent.Female.Persons
+
+We need to put them into their own data frame to work with them
+I'm also going to include Neighborhood and Community as factors, we may want them later
+
+This is a base R function, rather than a ggplot function
+
+```{R,fig.height=8}
+np_vars=c("Neighborhood","Community","Poverty.Rate","Employment.Rate","Percent.Age.65..","Labor.Force.Participation.Rate","Percent.Living.Alone", "Percent.Female.Persons")
+
+npdata=ndata[,np_vars]
+
+# in the heatmap, I want to drop the first two columns, which are factors 
+
+heatmap(cor(npdata[,c(-1,-2)]))
+```
+
+```{R}
+library(corrgram)
+
+corrgram(npdata,order=TRUE, lower.panel=panel.shade, upper.panel=panel.pts, text.panel=panel.txt)
+```
+
+# Barplots
+
+This is a flipped barplot
+
+The flip was doing using coord_flip()
+
+Community was used as the "fill" value in the Aesthetic, something we haven't seen before
+
+```{R,fig.height=16,fig.width=16}
+ggplot(ndata,aes(x=Neighborhood,y=Poverty.Rate,fill=Community))+geom_bar(stat='identity')+coord_flip()
+
+```
+
+# Reordering factors by some other variable
+
+It would be nice to plot this by decreasing poverty rate
+
+We can reorder the data to do this
+
+The reordering here is odd, because we need to reorder the factors in ndata.
+
+Each factor is stored as an integer, and ggplot starts with the first factor value (1) and proceeds from there
+
+When the factors are created, each neighborhood name is assigned a code, based on the order the name appears in 
+the dataframe.    The categories were ordered when the data was imported, so we need to force R to change the order of the factors
+
+To do this, we can sort the data by Poverty.Rate,   the variable we want to order the graph by
+
+Then we reset the factor names by using the command 
+
+mutate(Neighborhood=factor(Neighborhood,levels=Neighborhood))
+
+which resets Neighborhood as a factor, but with the order controlled by the dataframe sorted by Poverty.Rate
+
+so the neighborhood factor values are now ordered by the variable we want for the plot
+
+This seems a bit convoluted, but it does allow fine level of control of the plot
+
+```{R,fig.height=16,fig.width=16}
+
+require("dplyr")
+
+# reorder and plot
+
+
+nfdata=ndata%>%arrange(Poverty.Rate)%>%mutate(Neighborhood=factor(Neighborhood,levels=Neighborhood))
+
+ggplot(nfdata,aes(x=Neighborhood,y=Poverty.Rate,fill=Community))+geom_bar(stat='identity')+coord_flip()
+
+```
+
+#Piecharts
+
+ggplot has no direct way to create piecharts, you create a barplot then plot it in circuluar coordinates, as shown 
+in the examples below
+
+#A note about piecharts
+
+Piecharts are a very divise topic,  weirdly enough.    Most statisticians absolutely hate them.
+
+The problem is that they represent data as angles (slices of the pie) and humans are poor at estimating angles.
+
+That means that while many parts of the population like Pie charts, they are not reliable ways to represent information.
+
+In some parts of the business world,  leaders demand piecharts.   Not much you can do about it.
+
+Try to use barcharts instead whenever possible
+
+See
+
+https://www.data-to-viz.com/caveat/pie.html
+
+```{R}
+# Create Data
+tempdata <- data.frame(
+  group=LETTERS[1:5],
+  value=c(13,7,9,21,2)
+)
+
+# Basic piechart
+ggplot(tempdata, aes(x="", y=value, fill=group)) +
+  geom_bar(stat="identity", width=1) 
+```
+
+
+```{R}
+# Basic piechart
+ggplot(tempdata, aes(x="", y=value, fill=group)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0)
+```
+
+#treemap as an alternative to barcharts
+
+In a treemap,  the data is represented as squares,   people do better judging the size of rectangles
+
+```{R}
+require(treemap)
+
+treemap(ndata,
+            
+            # data
+            index="Neighborhood",
+            vSize="Total.Households",
+            type="index",
+            
+            # Main
+             title="Households per Neighborhood",
+             palette="Dark2",
+
+            # Borders:
+             border.col=c("black"),             
+             border.lwds=1,                         
+        
+            # Labels
+            # fontsize.labels=0.5,
+            # fontface.labels=1,            
+            # bg.labels=c("transparent"),              
+             align.labels=c("left", "top"),                                  
+             overlap.labels=0.5,
+             inflate.labels=FALSE                        # If true, labels are bigger when rectangle is bigger.
+
+            
+            )
+
+
+```
+
+Just for the sake of amusement, here's a pie chart of the households per neighborhood
+
+
+
+```{R,fig.height=16,fig.weight=16}
+# Basic piechart
+ggplot(ndata, aes(x="", y=Poverty.Rate, fill=Neighborhood)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0)
+```

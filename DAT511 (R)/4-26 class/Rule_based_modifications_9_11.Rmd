@@ -1,0 +1,103 @@
+---
+title: "Rule_based_modification_9_1"
+author: "HDS"
+date: "August 9, 2018, modified 4/26/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Rule based Modification
+
+Using the dcmodify package
+
+van der Loo and de Jonge,  Chapter 9 
+
+Example- 
+
+-start with a data frame
+-create a set of modification rules, based on nested if, else statements
+-apply the rules to the data set
+
+Aside:  Do the rules below commute??? What does that imply?  How can you check this?
+
+In a business setting,  the people working closely with the data may be able to give you information about
+how to fix specific rule violations,  based on their knowledge of how the business process works.  There may be consistent errors or mistakes that are made in the business that have known fixes- these can be turned into rules.
+
+
+```{r}
+require("dcmodify")
+mydat=data.frame(x=c(5,17,3,19),y=c("a","b","c","d"), stringsAsFactors=FALSE)
+
+mymod=modifier(
+  if(x>6)
+  {
+    y<-"c"
+  },
+  if(y=="c")
+  {
+    x<-11
+  }
+)
+mod_data=modify(mydat,mymod)
+mod_data
+```
+
+###Problem- Alter this code to check to see if the modification rules commute or not
+
+We can create modification rules as text files, either as simply text files
+
+if(x>6)
+  {
+    y<-"c"
+  },
+  if(y=="c")
+  {
+    x<-11
+  }
+  
+  I saved this as Mod_rule_1_text_version.txt
+```{R}
+
+mod2<-modifier(.file=file.choose())
+mod2
+mod_data2=modify(mydat,mod2)
+mod_data2
+
+```
+
+We can also save files in a yaml format, as used for rules in the validate package
+
+The file Mod_rule_1_text_version.yaml is a YAML version of the same set of modification rules.  The YAML format allows us to add labels and comments to the rule set that the text file version lacks
+
+I found it it bit difficult to get the YAML format right,  it seemed a bit fussy and documentation on dcmodify is a bit limited.
+
+```{R}
+mod3<-modifier(.file=file.choose())
+mod3
+mod_data3=modify(mydat,mod3)
+mod_data3
+```
+
+It is possible to define macros, using the := operator and form variable groups, using vargroup() as was done in the validate package
+
+###Missing values in dcmodify
+
+The default is to to assume the result is FALSE when data is missing, you can over-ride the default
+
+modify(dat,m, na.condition=TRUE)
+
+which will then intrepret NA values in the if statement as TRUE
+
+###Sequential Operation
+
+If the rules do not commute, the order of operations matters.   There is a bit of a work-around in dcmodify,  applying the all rules to the original data before any changes are made, making all the changes only after all the data has been tested.This is a bit iffy (due to possibly contradictory or unexpected results) in some ways.
+
+It is probably good practice to examine rule sets to be sure all the changes commute (ie the outcome is independent of the order in which the rules are applied)
+
+
+
+
+

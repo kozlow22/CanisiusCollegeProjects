@@ -1,0 +1,255 @@
+---
+title: "Plotting GIS data"
+author: "HDS"
+date: "2023-03-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Working with GIS Data Plots
+
+The neighborhood data we have been looking at has some GIS information in it
+
+These are in the variables called Latitude, Longitude and New.Georeference.Column
+
+Let's look at how we might use these locations (the center of the neighborhoods)
+
+
+```{R}
+infile="C:\\Users\\hdavi\\Dropbox\\Data_Analytics\\DAT511_Data_Cleaning\\Lectures_Spring_2023\\Examples\\Neighborhood_Metrics.csv"
+ndata=read.csv(infile,stringsAsFactors=TRUE)
+head(ndata)
+```
+
+#Maps
+
+There is a data format called GeoJSON that is used for maps based on GIS data
+
+R call plot these maps
+
+It turns out that OpenData Buffalo has a bunch of cool GeoJSON maps of the city,  including 
+the streets of the city and neighborhood boundaries
+
+Let's import the city street mapping as a GeoJSON file
+
+```{R}
+require("geojsonio")
+
+streets_infile="C:\\Users\\hdavi\\Dropbox\\Data_Analytics\\DAT511_Data_Cleaning\\Lectures_Spring_2023\\Examples\\Highways and Roadways.geojson"
+
+streets_df <- geojson_read(streets_infile,  what = "sp")
+```
+
+Plot in Base R
+
+```{R, fig.height=16,fig.width=16}
+library("sp")
+
+plot(streets_df)
+```
+We can also get a geojson file for the neighbhor hoods of Buffalo
+```{R}
+require("geojsonio")
+
+nbounds_infile="C:\\Users\\hdavi\\Dropbox\\Data_Analytics\\DAT511_Data_Cleaning\\Lectures_Spring_2023\\Examples\\Neighborhoods.geojson"
+
+nbounds_df <- geojson_read(nbounds_infile,  what = "sp")
+```
+
+```{R}
+plot(nbounds_df)
+```
+#Now we can combine these two graphs
+
+by adding text of the names at the lat and longitude
+
+```{R, fig.height=16,fig.width=16}
+library("sp")
+library("scales")
+
+plot(streets_df)
+
+plot(nbounds_df,lty="dotted",col=alpha("lightskyblue1",0.8),fg="white",lwd=4, add=TRUE)
+
+#add the names of the neighborhoods
+
+text(x=ndata$Longitude,y=ndata$Latitude,labels=ndata$Neighborhood,col="Red")
+
+```
+
+
+Plot using GGPlot2
+
+GGplot has to extract the geographic information from the geojson format, to
+create a "fortified" version of the data with the coordinate information in a "tidy" or "fortified" 
+format
+
+```{R}
+require("ggplot2")
+require("broom")
+```
+
+
+```{R}
+nbounds_df_fortified<-tidy(nbounds_df)
+```
+Now we can plot the map plus various other information using ggplot
+
+Here the geom_text is used to add the names of the neighborhoods to the plots
+
+```{R,fig.height=16,fig.width=16}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group),fill="blue",color="white")+theme_void()+coord_map()+geom_text(data=ndata,aes(x=Longitude,y=Latitude,label=Neighborhood),color="White",size=5)
+```
+
+
+```{R,fig.height=16,fig.width=16}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=group),color="white")+theme_void()+coord_map()+geom_point(data=ndata,aes(x=Longitude,y=Latitude,size=Poverty.Rate),color="red")+ scale_size_continuous(range = c(1, 30))+geom_text(data=ndata,aes(x=Longitude,y=Latitude,label=Neighborhood),color="White",size=5)
+```
+Conversion of the streets to the tidy form is quite slow
+
+```{R}
+streets_df_fortified<-tidy(streets_df)
+```
+
+```{R,fig.height=16,fig.width=16}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=group),color="blue",size=1)+geom_line(data=streets_df_fortified,aes(x = long, y = lat,group=group))+theme_void()+coord_map()+geom_point(data=ndata,aes(x=Longitude,y=Latitude,size=Poverty.Rate),color="red")+ scale_size_continuous(range = c(1, 30))+geom_text(data=ndata,aes(x=Longitude,y=Latitude,label=Neighborhood),color="White",size=5)
+```
+
+# Data Fusion
+
+The term "Data Fusion" means to use data from multiple datasets together in an analysis.  We have done some data fusion here to produce the plot
+
+In the map above,  we are showing data from three data sets
+
+ndata- information about neighborhoods,  used to get the name and the data on the poverty rate
+       we used geom_text to add the names,   and points to add dots indicating poverty level
+
+nbounds_df_fortified- has the outlines of the neighborhoods (polygonal boundaries)
+
+   geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=group),color="blue",size=1)
+
+Notice we used the variable "group" to specify the color of the fill used for each neighborhood,  at the moment it is just a color selected at random for each neighborhood.
+
+streets_df_fortified-  these are lines that tell us the coordinates of streets,  we use these to drawn lines
+
+# Poverty on the map
+
+It would be really cool to be able to color code neighborhoods by poverty level
+
+If we look at the geom_polynomial function calll
+
+ geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=group),color="blue",size=1)
+ 
+it used the group column of nbounds_df_fortified to fill in the polygons.  So group codes for neighborhood.
+
+Lets look at nbounds_df_fortified, and see what is in this data set.
+
+If we could add Poverty.Rate from ndata to nbounds_df_fortified, then we could use the Poverty.Rate to color code each neighborhood
+
+
+
+```{R}
+head(nbounds_df_fortified)
+tail(nbounds_df_fortified)
+```
+
+Okay,  ID is a character that appears to identify the neighborhood
+
+but what do the codes refer to?
+
+nbounds_df_fortified came from nbounds_df
+
+What is in nbounds_df
+
+This is a complicated variable...
+
+```{R}
+str(nbounds_df)
+```
+
+Okay, wow that's a bunch of information.
+
+This object has slots,  so that means it is an S4 structure in R
+
+Despite the name, this is not a dataframe,  it is structure or class
+
+Looking at the top,  there is a slot called data, let's look at that
+
+```{R}
+nbounds_df@data
+```
+
+
+
+Let's create a function that looks up the neighborhood name from the ID string
+
+We can then apply it to the group variable in nbounds_df_fortified to get a list of the
+neighborhoods that matches nbounds_df_fortified, and add that to nbounds_df_fortified
+
+We want to use Neighborhood as the "key" that links these different data sets
+
+```{R}
+get_nbname<-function(id)
+{
+  y= nbounds_df@data$nbhdname[id]
+  return(y)
+}
+
+get_nbname(3)
+
+```
+
+```{R}
+temp=unlist((sapply(as.integer(nbounds_df_fortified$id),get_nbname)))
+nbounds_df_fortified$nbname=temp
+head(nbounds_df_fortified)
+tail(nbounds_df_fortified)
+
+```
+
+Okay, so now we have the neighborhood names in to the dataframe that has the boundaries
+
+Let's add the Poverty rate.   We'll do it the same way,  create a function to get the poverty rate from
+the ndata data frame, given the name, then apply that to nbname
+
+```{R}
+get_poverty<-function(nbname)
+{
+  return( ndata$Poverty.Rate[ndata$Neighborhood==nbname])
+}
+
+temp=unlist((sapply(nbounds_df_fortified$nbname,get_poverty)))
+nbounds_df_fortified$Poverty.Rate=temp
+head(nbounds_df_fortified)
+tail(nbounds_df_fortified)
+```
+Cool!
+
+Now we can make a plot where we use the Poverty.Rate as the fill on the map
+
+```{R,fig.height=16,fig.width=16}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=Poverty.Rate),color="blue",size=1)+geom_line(data=streets_df_fortified,aes(x = long, y = lat,group=group))+theme_void()+coord_map()+scale_size_continuous(range = c(1,30))+geom_text(data=ndata,aes(x=Longitude,y=Latitude,label=Neighborhood),color="White",size=5)
+```
+
+Cool!  We can do this with median income as well
+
+```{R}
+get_income<-function(nbname)
+{
+  return( ndata$Median.Income[ndata$Neighborhood==nbname])
+}
+
+temp=unlist((sapply(nbounds_df_fortified$nbname,get_income)))
+nbounds_df_fortified$Median.Income=temp
+head(nbounds_df_fortified)
+tail(nbounds_df_fortified)
+```
+```{R,fig.height=16,fig.width=16}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=Median.Income),color="blue",size=1)+geom_line(data=streets_df_fortified,aes(x = long, y = lat,group=group))+theme_void()+coord_map()+geom_text(data=ndata,aes(x=Longitude,y=Latitude,label=Neighborhood),color="White",size=5)
+```
+```{R}
+ggplot()+geom_polygon(data=nbounds_df_fortified,aes(x = long, y = lat,group=group,fill=Median.Income),size=1)
+```

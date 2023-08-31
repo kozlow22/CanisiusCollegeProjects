@@ -1,0 +1,141 @@
+---
+title: "Week 4 Homework"
+author: "Mike Kozlowski"
+date: "2023-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+3a.) Write a function that will compute the squares of the values from 1 to 10, and print them out only if the square is an odd number.
+
+```{r}
+x = 1:10
+xsquared = x^2
+xsquared[lapply(x, "%%", 2) == 0]
+```
+
+b.) Create a list of strings of ten items  found in your kitchen and a second list of ten items found in your living room (try to include at least two items found in both).  Generate from these the list of all items found (no duplicates), the list of items found in both locations and the differences in the two sets.
+
+```{r}
+kitchen = c("cleaning towel", "water bottle", "knife", "plate", "bowl", "drinking glass", "blender", "coffee grinder", "paper towels", "bread")
+livingRoom = c("cleaning towel", "water bottle", "drinking glass", "couch", "tv", "desk", "office chair", "computer", "textbooks", "bourbon")
+union(kitchen, livingRoom)
+intersect(kitchen, livingRoom)
+setdiff(kitchen, livingRoom)
+setdiff(livingRoom, kitchen)
+```
+
+c.) Use the current assessment data set to find out the list of property owners who own property worth less than $50k and more than $1 million.
+
+```{r}
+mydata = read.csv("C:\\Users\\Mike\\Documents\\DAT511\\2-1 class\\2020-2021_Assessment_Roll.csv")
+```
+
+```{r}
+y = mydata$OWNER1[mydata$TOTAL.VALUE < 50000]
+z = mydata$OWNER1[mydata$TOTAL.VALUE > 1000000]
+intersect(y,z)
+```
+
+d.) Go to the Open Data Buffalo Site, go to the data section and download the Tree Inventory.  You can search the site for tree, which should locate this file.  Download the Tree Inventory as a CSV file (using the export menu).  How many trees are on the inventory?   Produce a table of the number of trees by the Council.District.
+
+```{r}
+mydata2 = read.csv("C:\\Users\\Mike\\Documents\\DAT511\\Tree_Inventory.csv")
+```
+
+```{r}
+nrow(mydata2)
+table(mydata2$Council.District)
+```
+
+e.) Load the mtcars data set (using the command data(mtcars)).   Convert the cylinders column to a factor.  Create a regression model that predicts mpg (mpg is the y or dependent variable) using cyl, disp, hp, wt as predictor variables.   Create the model,  showing the formula and run an anova using an F test.  Which predictors seem to be most important?
+
+```{r}
+data(mtcars)
+```
+
+```{r}
+mtcars$cyl <- as.factor(mtcars$cyl)
+regmodel = lm(mpg~cyl + disp + hp + wt, data = mtcars)
+anova(regmodel)
+
+# It appears that horsepower is the biggest predictor in this case.
+```
+
+4.) Read Section 3.1 of van der Loo and de Jonge,  do problems 3.1.1., 3.1.2, 3.1.3,3.1.4, 3.1.5, 3.1.6, 3.1.7.
+
+3.1.1) Explain which of the following numeric codes can or cannot be stored as integer data in R.
+
+    a. United States Social security numbers, consisting of nine figures.
+    These can be stored in integers as the limit for a 32 bit integer is 10 digits long.
+    
+    b. Universal Product Code-A. This is a barcode convention that labels products with 12 decimal digits.
+    This cannot be as it is over the digit limit of a 32 bit integer.
+    
+    c. Phone numbers consisting of 10 digits, all starting with zero.
+    Since the number start with 0, they will never go over the 32 bit integer limit (2*10^9) so this will also work.
+
+3.1.2) Explain why the following R command yields an error.
+
+  read.table(textConnection("123451234512345")
+    , colClasses="integer")
+It's over the limit for what can be stored in a 32 bit integer, it would need to be stored as a double.
+
+3.1.3) Execute the following statement and determine the class of max_int.
+
+  max_int <-.Machine$integer.max
+
+Now execute the following statements and explain what happens (recall that the postfix L behind a numeric literal indicates integer).
+
+  x1 <- 2L * max_int
+  x2 <- 2 * max_int
+  
+```{r}
+max_int <-.Machine$integer.max
+```
+
+```{r}
+#x1 <- 2L * max_int
+x2 <- 2 * max_int
+```
+
+Adding a postfix L to 2 forces it to be an integer value, which causes an overflow, resuling in an error. Without the L postfix, R seems to recognize the overflow and automatically make x2 be a double in order to have the code execute without error.
+
+3.1.4) Predict the column types of d1 and d2 after executing the following statements.
+
+  d1 <- read.table(textConnection("1324665248"))
+  d2 <- read.table(textConnection("4827647632"))
+
+Check your result and explain what happened. If you were asked to read in a file containing 10-digit product codes, what storage format would you choose?
+
+```{r}
+#My prediction is that d1 will be an integer, and d2 will be a double, as R seems to be aware of overflowing integers and has been assigning var classes as doubles when necessary.
+d1 <- read.table(textConnection("1324665248"))
+d2 <- read.table(textConnection("4827647632"))
+str(d1)
+str(d2)
+```
+Since 10 digit product codes have the opportunity to overflow if going above the 32 bit integer limit, I'd use a double.
+
+3.1.5) Determine the machine precision u for numbers in single precision format (hint: the mantissa consists of 23 bits).
+
+```{r}
+2^-24
+```
+
+3.1.6) Compute the smallest representable positive subnormal number in double precision format.
+
+```{r}
+2^-52 * 2^-1022
+```
+
+3.1.7) The fact that roundoff errors are made at each arithmetic operation also implies that computer addition is not associative. That is, in double precision arithmetic it is, in general, not true that (x+y) + z = x + (y + z). Test this using R or any other software you use to do calculations by computing (0.4+0.3) + 0.1 and 0.4 + (0.3+0.1) and comparing the results. How big is the difference?
+
+```{r}
+as.double((0.4 + 0.3) + 0.1)
+as.double(0.4 + (0.3 + 0.1))
+```
+Apparently there is no difference, unless I am doing these calculations in the wrong format. I tried both with and without the "as.double" prefix.

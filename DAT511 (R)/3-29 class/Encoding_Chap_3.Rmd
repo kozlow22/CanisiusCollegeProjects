@@ -1,0 +1,143 @@
+---
+title: "Encoding, Time and Date"
+author: "HDS"
+date: "August 2, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Encoding, Time and Date
+
+#Checking your computers default encoding
+```{r}
+Sys.getlocale("LC_CTYPE")
+```
+
+#converting from one encoding to another
+
+```{R}
+x="Well, mercy, mercy\n\a me..\tbeen too long!\x02"
+cat(x,"\n\n")
+x2=iconv(x,from="UTF8",to="Latin1")
+cat(x2)
+```
+```{r}
+iconv(x,toRaw=TRUE)
+iconv(x2,toRaw=TRUE)
+```
+
+
+# available conversions
+
+```{r}
+iconvlist()
+```
+
+
+
+
+###Detecting encoding
+
+There are a set of example files of data encoding
+"banviet8.htm" "croattx8.htm" "danish8.htm"  "esperan8.htm" "huseyin8.htm" "jpndoc8.htm"  "kordoc8.htm"  "russmnv8.htm"
+
+we will use the stringi package to detect the encodings of these files
+
+Here the readBin function is used to load the data file as binary values,  not as text.  The binary values are input to to the function stri_enc_detect which will attempt to use the binary values to estimate what encodings are likely to be correct.  It will give us a confidence level for each likely encoding that it detects
+
+```{r}
+require("stringi")
+bytes=readBin(file.choose(),what="raw",n=2000)
+stri_enc_detect(bytes)
+
+```
+Let's look at what the binary input looks like
+```{r}
+bytes[1:20]
+```
+
+
+The readbin function has returned us a sequence of hexademical values,  these are numbers in base 16.
+
+Remember that the hexadecimal digits are [0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f] where a=10 (in base 10), b=11, c=12,d=13,e-14,f=15
+
+Hexadecimals are convenient ways of writing binary, becuase four binary digits make up 1 hex digit
+
+1111 (binary or base2)  = 15 (base 10)= f (base 16)
+0000 (binary)           = 0 (base 10)=  0 (base 16)
+1011 (binary)           = 11 (base 10)= b (base 16)
+
+so a value like 6f (hex) = 0110 1111 (binary)
+
+When you get down to working with binary versions of data, you are all the way down into the weeds!  Some of my first computer experiences where at this level, with binary
+------------------------------------------------------------
+
+Now, let's read in one of these files and take a look at it
+
+Below,  I want to use Big5 encoding to read from the file yan_Big5.txt. First, a file handle is obtained using file(), note that we specify the encoding used at this point.  We could write text files with differnet encodings using a file handle, by getting a file handle with open="wt" (write text) and the desired encoding.
+
+The head of this material looks like ordinary english text
+
+```{r}
+target_encoding='Big5'
+fcon=file(file.choose(),open="rt",encoding=target_encoding)
+mytext=readLines(fcon)
+close(fcon)
+head(mytext,20)
+```
+
+But a bit farther down we see something very different
+
+```{r}
+mytext[100:120]
+```
+
+#Encodings and higher level file I/O
+
+Functions such as read.csv() and read.table() allow you to specify the encoding being used,  so using these functions is simple, once you know the encoding.
+
+
+###Date manipulation and lubridate
+
+Okay, let's look at using lubridate to manage date information, we'll start by extracting dates from messy text
+
+```{r}
+require('lubridate')
+messy_text=c("1/12/2018", "Jan 1 of 2017","Binky was born February, the 3rd, in 1977","4-3-1997","July 30, 2009")
+clean_dates=mdy(messy_text)
+clean_dates
+```
+Note that we used mdy,  so the expected order of dates is month, day, year
+You do need to know the sequence of values
+
+We can then extract other information from the dates, using functions from lubridates
+
+```{r}
+leap_year(clean_dates)
+day(clean_dates)
+yday(clean_dates)
+mday(clean_dates)
+wday(clean_dates)
+week(clean_dates)
+month(clean_dates)
+year(clean_dates)
+```
+
+```{r}
+temp=wday(clean_dates,abbr=FALSE,label=TRUE)
+temp
+```
+This is kind of handy...
+
+How could you make use of this?  In problems involving human behavior, such as shopping, banking, marriages, other crimes, travel, etc, would you expect the day of the week to be a factor?  How about the month?
+
+
+
+
+
+
+
+```

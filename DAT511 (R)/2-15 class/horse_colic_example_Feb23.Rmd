@@ -1,0 +1,594 @@
+---
+title: "General Purpose File I/O in R"
+author: "HDS"
+date: "7/25/2018"
+output: html_document
+---
+
+Updated February 2023
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##The Horse Colic Data Set
+
+This set is from the University of California Irvine data repository
+
+It is a bit "dirty" and challenging.  That's why we are looking at it.  We want to get it 
+loaded into an R dataframe,  make sure the variables are all properly named and all the data types
+set correctly.
+
+We have some options for importing data into R
+
+a.) Use the standard read.table, or read.csv functions
+
+b.) Locate specialized file loading routines for Excel, SPSS, SAS, GIS etc file located in packages
+
+c.) Use the "import DataSet" utility in RStudio
+
+d.) Use the "base" level File I/O functions in R to create your own file loader
+
+Data source
+
+https://archive.ics.uci.edu/ml/datasets/Horse+Colic
+
+2. Source Information
+   -- Creators: Mary McLeish & Matt Cecile
+	  	Department of Computer Science
+		University of Guelph
+		Guelph, Ontario, Canada N1G 2W1
+		mdmcleish@water.waterloo.edu
+   -- Donor:    Will Taylor (taylor@pluto.arc.nasa.gov)
+   -- Date:     8/6/89
+
+
+
+What we will do is replicate the ideas in Chap 2 of the McCallum book on Bad Data, "Is it just me or does this data smell funny?"
+
+##General Advice
+
+-Use Excel to convert the format to CSV or the Import Dataset utility in RStudio if you can- these are quick
+utilities that will work fine on small data sets
+
+-For complex data (like GIS),  find a pre-written, good quality package- if you know where the data came from and the format, try to find a package that will load it.
+
+-For databases- access them directly, or get the DB administrator to pull datatables/Queries for you as CSV files
+
+-Use the base level File I/O when nothing else works,  or if you have to write a very specific output format you can't find a package for
+
+##File I/O with an uncertain format
+
+Okay, we will go through the process of working with this file entirely within R, using simple read.table() functions to load the data
+
+This is a relatively small set,  I'd probably start working with this set in Excel,  but...Excel can only load matrices up to 1,048 by 16,384 values, a modified version of the approach used here can go beyond that.  So, we are doing this the hard way, using only tools in R.
+
+# First let's take a look at what we have here.
+
+We will use a simple readline function to get an initial look at what we have:
+
+If the data set is small, we could load it into Excel and look at it, to see what we have.  This works fine with small files,  but
+
+1.) You already know how to do that
+
+2.) If the file is really large,  Excel won't open it.
+
+So we are going to practice a different approach to working with a file like this one,  an approach that will work for larger files.
+
+We will use a pretty basic R readline function
+
+readLines(fileName, n=10)- the readlines function will read in n (here n=10) lines in a text file in as separate character strings
+
+if we don't specify n,  we will get all the lines.  For a really large file, we don't want all the lines.
+
+Here I'll use file.choose() to locate the file horse-colic.data, and then print out the first 10 lines
+
+This approach loads the entire file
+
+```{R}
+rawString=readLines(file.choose(), n=10)
+rawString[1:10]
+
+```
+
+THis isn't a really big file, so let's load all the lines of data, and find out how long it actualy is
+
+```{r}
+rawString=readLines(file.choose())
+length(rawString)
+```
+
+What is the length of the file?  How many lines?
+
+
+Okay, so just looking at the first few lines, there is no header information and it's not clear if there is any specimen or individual identifiers included.
+
+I don't see anything that looks like a date or a time either.  We have some real values and some integers, plus that question mark.
+
+It looks like they are using a space as the delimiter, and the ? is probably a symbol for missing data
+
+
+Okay, lets look at the other file in this set. horse-colic names
+```{R}
+hcNames=readLines(file.choose())
+hcNames
+```
+
+
+Okay, cool, this is the file that tells us what the columns in the first file mean.  It looks like we have 28 columns of data, and we know from the size of rawString that we have a total of 300 specimens.
+
+  This is a flat data table of 300 rows by 28 columns, the column names are included above
+
+Column 3 is the horse and hospital tag- so this is an identifier
+
+It certainly seems that ? is an indicator of missing data.
+
+We need to import this file into a data.frame first and then we add the labels and make sure all the data types and content are correct.
+
+We can use the read.tables() function here,  if we look at the read.tables() help menu, there are options to conrol what the delimiter is ( sep=" " to use a space as the delimiter) and we can specify what the missing data symbol is na.strings=" ".  There is no header (column info)
+
+```{r}
+hcolic_data_file=file.choose()
+
+```
+
+```{r}
+horseColic=read.table(hcolic_data_file,header=FALSE,na.strings="?",sep=" ")
+head(horseColic)
+str(horseColic)
+```
+Okay, we have a problem, we have one line missing an entry.  This isn't particulary unusual, but it does generate an error on the file load.
+
+There is a fill=TRUE option in read.table that will add "blank" values, but we really should know what is happening
+
+Let's use the fill blank option and see what happens
+
+```{r}
+horseColic=read.table(hcolic_data_file,header=FALSE,na.strings="?",sep=" ",fill=TRUE)
+head(horseColic)
+str(horseColic)
+```
+
+It looks like the 29th column is all maybe all NA values.   We think from the names file that there should
+be 28 valid variables, so the 29th column is probably a formatting problem in the data file.
+
+we can check to see if any of the values in column 29 are not NA
+
+is.na gives us true for all the na values
+
+!is.na gives us the not of is.na,   so true for all the non-NA results
+
+Sum of that will tell us how many items in column 29 are not NA
+
+```{R}
+sum(!is.na(horseColic[,29]))
+```
+
+So all the entries in column 29 are NA,  we can just discard column 29
+
+just select the first 28 columns and save it into horseColic again
+
+```{R}
+horseColic=horseColic[,1:28]
+```
+
+###Column Labels
+
+Now, what do we have in the file? I opened horse-colic.names in a text editor, so I can see it while I'm doing this.  This file has the names of all the columns, I'd like to add that to the data frame, we can use the col.names function.   I'm going to type the variable names into a list in R, then set the col.names(horseColic) to this list
+
+
+Notice there is something wrong with the data here,  in the file when it reaches variables 25,26, 27
+
+25, 26, 27: type of lesion
+          - first number is site of lesion
+               1 = gastric
+               2 = sm intestine
+               3 = lg colon
+               4 = lg colon and cecum
+               5 = cecum
+               6 = transverse colon
+               7 = retum/descending colon
+               8 = uterus
+               9 = bladder
+               11 = all intestinal sites
+               00 = none
+          - second number is type
+               1 = simple
+               2 = strangulation
+               3 = inflammation
+               4 = other
+          - third number is subtype
+               1 = mechanical
+               2 = paralytic
+               0 = n/a
+          - fourth number is specific code
+               1 = obturation
+               2 = intrinsic
+               3 = extrinsic
+               4 = adynamic
+               5 = volvulus/torsion
+               6 = intussuption
+               7 = thromboembolic
+               8 = hernia
+               9 = lipoma/slenic incarceration
+               10 = displacement
+               0 = n/a
+
+There are 4 variables listed (site, type, subtype and code), for three of the  columns,   when we look at the raw data for columns 25-26, there are these 5 digit strings of integer values in columns 25, 26, 27,   
+
+From the description above the first two digits code the site of the lesion, the second is type, third is subtype and fourth is a specific code.
+
+This is called "magic number coding", in which an integer value is used to encode multiple pieces of information.  This is a storage tactic that used to save some space, but which is now regarded as poor programming practice, you will still see it occurring (unfortunately).
+
+```{r}
+rawString[1:2]
+```
+
+
+
+Okay, in the first to specimens, this makes sense, each had one lesion- so after we get columns labeled, we will need to split each of these columns (25, 26, 27) up into a couple of different variables so we can work with this information
+
+Okay, for now let's get the variable names set, then we'll fix columns 25, 26, 27
+
+I created name list by typing in all the variable names from the names file
+
+```{r}
+nameList=c("surgery","Age","Hospital_Number","rectal_temperature","pulse","respiratory_rate","temp_of_extremities","peripheral_pulse","mucous_membranes","Capillary_refill_time","pain","peristalsis","abdominal_distension","nasogastric_tube","nasograstric_reflux","nasograstric_reflux_PH","rectal_exam_feces","abdomen","packed_cell_volume","total_protein","abdominocentesis_appearance","abdomcentesis_total_protein","outcome","surgical_lesion","lesion_1","lesion_2","lesion_3","cp_data")
+colnames(horseColic)<-nameList
+str(horseColic)
+```
+##Now some cleanup
+
+
+Now, lets add columns for Lesion_1_site, Lesion_1_type, Lesion_1_subtype and Lesion1_code, and also for Lesion2 and 3,  we will fill them with zeros initially and put them in a data frame, then add this to horseColic
+```{r}
+tempframe=data.frame(Lesion_1_site=rep(0,300),Lesion_1_type=rep(0,300),Lesion_1_subtype=rep(0,300), Lesion_1_code=rep(0,300),Lesion_2_site=rep(0,300),Lesion_2_type=rep(0,300),Lesion_2_subtype=rep(0,300), Lesion_2_code=rep(0,300),Lesion_3_site=rep(0,300),Lesion_3_type=rep(0,300),Lesion_3_subtype=rep(0,300), Lesion_3_code=rep(0,300))
+horseColic=cbind(horseColic,tempframe)
+```
+Check this
+```{r}
+head(horseColic)
+```
+
+Now we need to break the 5 digit codes for lesion_1, 2 and 3 up into four pieces.  It is a 5 digit integer like
+
+11300 
+
+for specimen 1,  looking at th horse-colic.names file, this means site of lesion=11,  all intestinal sites,  type=3, inflammation, subtype=0, NA, specific code=0, NA
+
+the 11 is the integer division by 1000,
+
+300 is the remainder of the division by 1000
+
+3 is the integer divisor by 100,  and so on
+
+We keep dividing the value by powers of ten and keep the remainder.
+
+Note: we could also use some text splitting tactics here, using regex to break up these
+magic numbers
+
+```{r}
+site=horseColic$lesion_1%/%1000
+temp1=horseColic$lesion_1%%1000
+typeL=temp1%/%100
+temp2=temp1%%100
+subtypeL=temp2%/%10
+specCode=temp2%%10
+horseColic$Lesion_1_site=site
+horseColic$Lesion_1_type=typeL
+horseColic$Lesion_1_subtype=subtypeL
+horseColic$Lesion_1_code=specCode
+
+site=horseColic$lesion_2%/%1000
+temp1=horseColic$lesion_2%%1000
+typeL=temp1%/%100
+temp2=temp1%%100
+subtypeL=temp2%/%10
+specCode=temp2%%10
+horseColic$Lesion_2_site=site
+horseColic$Lesion_2_type=typeL
+horseColic$Lesion_2_subtype=subtypeL
+horseColic$Lesion_2_code=specCode
+
+site=horseColic$lesion_3%/%1000
+temp1=horseColic$lesion_3%%1000
+typeL=temp1%/%100
+temp2=temp1%%100
+subtypeL=temp2%/%10
+specCode=temp2%%10
+horseColic$Lesion_3_site=site
+horseColic$Lesion_3_type=typeL
+horseColic$Lesion_3_subtype=subtypeL
+horseColic$Lesion_3_code=specCode
+```
+
+Let's check a couple of random lines to see if we got that right,  the conversion from the 5 integer digit code to 4 values
+
+```{R}
+horseColic[112,]
+horseColic[(horseColic$Lesion_3_code)!=0,]
+```
+
+Looks okay!
+
+## What are the variables, and are the types correct?
+
+Most of the variables here are coded as integers, but really represent categories, often unordered categories.  This type of coding is common,notice that R assumed they were integers when they were loaded, we will need to specifiy to R that these are categories
+
+Unordered categories are simply sets of groups of which an individual is part of (male/female, citizenship)
+
+An ordered category is a set of groups that have a sequence or order to them (small-medium-large,  sinful-average-virtuous-saintly)-  also called ordinal data
+
+Temperature (in F or C) is an odd measurement since 0 is not the minimum on these scales, although they are real-number measurements.   An increase from 100F to 200F does not double the temperature in absolute terms.  PH values are not absolute, and they are also log transforms of the underlying ion concentrations.  Don't ever take ratios of this type of data!
+Technically, this is interval data
+
+Blood concentrations in mass/volume are continuous variables-ratios are meaningful since 0 is the minimum- this is called a ratio variable
+
+The following variables are un-ordered categories
+
+  surgery, 
+  peripheral pulse
+  mucous membranes
+  pain
+  peristalsis
+  nasogastric tube
+  rectal exam feces
+  abdomen
+  abdominocentesis appearance
+  outcome
+  surgical lesion
+  lesion_site
+  lesion_type
+  lesion_subtype
+  lesion_specific code
+  
+  
+We have ordered categories
+
+  Age
+  capillary refill times
+  abdominal distension
+  nasograstric reflux
+
+Integers
+
+  Hospital Number
+  pulse
+  respiratory rate
+
+Float (with offset -ie temperatures)
+
+  rectal temperature
+  temperature of extremities
+  nasogastric reflux PH
+
+Float (absolute value)
+
+  total protein
+  abdomcentesis total protein
+  packed cell volume
+
+##Why does it matter what type of variables these are?
+
+Well, different test or models require different types of data.  You don't want to use data incorrectly, so you need to know what type it is.
+
+You want to set the variable types correctly, so that R will operate correctly on them- remember many functions are overloaded, and so they behave differently on different types of data
+
+We will want to create an updated version of horseColic, with the factor names and types set
+
+We can use as.factor to convert other variables to factors, specify the factor names and set the ordered value.  We send the factor() function the variable to be change, and a list of names as character string in the order of codes.  The default is unordered- I'm not going to order age, it is reversed in this set
+
+Note that I used the horse colic names file to get the category labels and add them to the categories as I converted the columans values from integers to factors
+
+In several cases,  I got errors when I attempted to to do this because there were more different integer values than expected.  The category labels below include some category names for errors.
+
+This was published data, it was supposed to be clean, but it's not.   There are unexpected values here.
+
+What I'm trying to do here is created new variables with the same name as each column that should be a factor, adding in the name of the factor levels from the names file (the data dictionary)
+
+Here is an example of changing just one line at a time
+
+```{R}
+site1=factor(horseColic$Lesion_1_site,labels=c("none","gastric","Sm intestine","lg colon","lg colon and cecum","cecum","transverse colon","retum/descending colon","uterus","bladder","all sites"))
+```
+
+
+
+
+Why did we get an error here?
+
+```{r}
+unique(horseColic$Lesion_1_site)
+cat("\n")
+```
+
+
+
+
+There are 15 different values here,  the data dictionary said there were 11?  So the data and the dictionary don't match.
+
+Welcome to the real world,   data errors
+
+For now I"ll add some factor names to indicate the error values, 12,21,31,41 
+
+```{r}
+site1=factor(horseColic$Lesion_1_site,labels=c("none","gastric","Sm intestine","lg colon","lg colon and cecum","cecum","transverse colon","retum/descending colon","uterus","bladder","all sites","error12","error21","error31","error41"))
+summary(site1)
+```
+
+Here is the code setting the factor values for all the factor variables
+
+
+```{r}
+surg=factor(horseColic$surgery,labels=c("Surgical","Non-Surgical"))
+age=factor(horseColic$Age,labels=c("Adult","Young"))
+tempE=factor(horseColic$temp_of_extremities,labels=c("Normal","Warm","Cool","Cold"))
+ppulse=factor(horseColic$peripheral_pulse,labels=c("normal","increased","reduced","absent"))
+mm=factor(horseColic$mucous_membranes,labels=c("normal pink","bright pink","pale pink","pale cyanotic","bright red","dark cyanotic"))
+crt=factor(horseColic$Capillary_refill_time,labels=c("<3 seconds",">3 seconds","error"),ordered=TRUE)
+pain=factor(horseColic$pain,labels=c("alert no pain","depressed","int mild pain","int severe pain","cont severe pain"))
+peristalsis=factor(horseColic$peristalsis,labels=c("hypermotile","normal","hypomotile","absent"))
+distension=factor(horseColic$abdominal_distension,labels=c("none","slight","moderate","severe"),ordered=TRUE)
+ntube=factor(horseColic$nasogastric_tube,labels=c("none","slight","significant"), ordered=TRUE)
+nreflux=factor(horseColic$nasograstric_reflux,labels=c("none",">1 liter","<1 liter"))
+feces=factor(horseColic$rectal_exam_feces,labels=c("normal","increased","decreased","absent"))
+abdomen=factor(horseColic$abdomen,labels=c("normal","other","firm feces","distended small","distended large"))
+adbApp=factor(horseColic$abdominocentesis_appearance,labels=c("clear","cloudy","serosanguinous"))
+outcome=factor(horseColic$outcome,labels=c("lived","died","was euthanized"))
+surgical_lesion=factor(horseColic$surgical_lesion,labels=c("Yes","No"))
+site1=factor(horseColic$Lesion_1_site,labels=c("none","gastric","Sm intestine","lg colon","lg colon and cecum","cecum","transverse colon","retum/descending colon","uterus","bladder","all sites","error12","error21","error31","error41"))
+type1=factor(horseColic$Lesion_1_type,labels=c("None", "simple","strangulation","inflammation","other"))
+subtype1=factor(horseColic$Lesion_1_subtype,labels=c("N/A","mechanical","Paralytic","Error3"))
+scode1=factor(horseColic$Lesion_1_code,labels=c("n/a","obturation","intrinsic","extrinsic","adynamic","volvulus/torsion","intussuption","thromboemboic","hernia","lipoma/slenic incarceration"))
+site2=factor(horseColic$Lesion_2_site,labels=c("none","gastric","lg colon","transverse colon","retum/descending colon"))
+type2=factor(horseColic$Lesion_2_type,labels=c("none","simple","other"))
+subtype2=factor(horseColic$Lesion_2_subtype,labels=c("N/A","mechanical"))
+scode2=factor(horseColic$Lesion_2_code,labels=c("n/a","obturation","intrinsic"))
+site3=factor(horseColic$Lesion_3_site,labels=c("none","Sm intestine"))
+type3=factor(horseColic$Lesion_3_type,labels=c("simple","inflammation"))
+subtype3=factor(horseColic$Lesion_3_subtype,labels=c("N/A"))
+scode3=factor(horseColic$Lesion_3_code,labels=c("n/a","lipoma/slenic incarceration"))
+```
+
+Note: Capillary refill time turned out to have 3 unique values in the list of codes,despite the fact that horse-colic names said there were 2 code values
+
+I found this using unique(horseColic$Capillary_refill_time), which showed there were 3 codes for this value-which(horseColic$Capillary_refill_time==3) let me know that the errors here are on lines 79 and 86
+
+I tagged the 3rd code as error- in the real world, I'd talk to the data collectors to try to find out what went wrong here
+
+Note: horseColic$Lesion_1_site had the same problem, there are 15 unique codes in the data 0-11 plus 31, 21,41, and 12,  again I used unique(horseColic$Lesion_1_site) to find them and which() to determine where they are- this could easily be do to my conversion routine, since I extracted these data points-  I checked this by locating each error using which and then looking at the lesion type code
+
+  which(horseColic$Lesion_1_site>11)
+      [1] 106 127 187 190 204 246 264 270 286 293
+
+  temp=which(horseColic$Lesion_1_site>11)
+  horseColic[temp,]
+  
+This set of commands let me look at the lesion1 values and verify that it wasn't a conversion error on my part
+
+Lesion_1_type has some zero entries,  I think this probably occurs when there is no lesion, ie when Lesion_1 is zero-
+
+Lesion_1_subtype includes 4 codes 0-3, rather than the 3 codes 0-2 listed in the horse-colic.names file
+
+At this point I realized that there was a second descriptive file- horse-colic.names.original- it seems like a good idea to go check that, maybe the original set of names had more codes, which they simplified later or something?- Nope- same set of codes in this file, so that's not the problem
+
+Lesion_1_code- the value 10 (displacemnt) never appears, drop this factor label
+
+With Lesion_2_site- there are only 5 location codes,  0,1,3,6,7, so I adjusted the factors  Important:- This poses substantial modeling challenges-since we do not have samples with all possible sites for lesion 2 in the data set- we might face data in the test set with other location codes for Lesion_2_site (or in the real world)- multiple site lesions may be quite rare, and thus hard to work with- we should be aware of this going forward
+
+Lesion_2_type- we have only none, simple, other
+
+Lesion_2_subtype- only none or mechanical
+
+Lesion_2_code- only 0,1,2
+
+Lesion_3_site- only 0,2
+
+Lesion_3_type- only 0,2 appear
+
+Lesion_3_subtype is always N/A, so this is a clearly useless column
+
+Lesion_3_code is only 0 or 9
+
+##Why did this happen?
+
+This was published data, the authors used it in a scientific paper, but there were still some errors, in capillary fill time and lesion 1 sites where there are data codes with no corresponding values- these are absolute errors, mistakes.
+
+It may have been data entry, or it might have been that the original data had codes that they stopped using, but didn't remove from the data.  But we would need to fix these or deal with them somehow
+
+Lesions 2 and 3 seem to have a lot of issues, probably because multiple lesions are relatively rare and we have only 300 specimens.  It would probably make sense in modeling the data to use just a presence/absence code for lesions 2 and 3 since we know so little about these events
+
+Could we have fixed the data in Excel?
+
+1.) Would we have found all the data errors?  
+2.) Would we have documented them all?  
+3.) What would happen if we had to clean a revised version of the data set?
+      If we pointed the problems out to our team and they fixed the raw data file?  Would we have to clean it          again?
+4.) Did we use any formal tests to find these problems?  It was just the 
+  process of preparing the data for formal analysis that revealed the   
+  problems- this happens far more often than you would expect, the simple   
+  initial steps fix a lot of problems.   
+  
+## Do we trust that we have gotten the factor names all correct?  How could we check this?
+
+What if I messed up the order of the factor names? or if R screwed them up?  That would be a pretty epic mess- how do we check this?
+
+There is a table function in R that builds a cross tabulation of one variable against another, we can use it to check the factor conversions
+```{r}
+table(surg,horseColic$surgery)
+```
+Okay, so look at this, all the Surgical codes are 1 and all the Non-Surgical codes are 2, which is what we wanted
+
+Note: the table function looks pretty handy...
+
+Also- if I was really obsessive, I should do this for every single variable we altered.  I can do it by cutting and pasting from the factor conversion script above.  I'm going to check a few more conversions, but not all.  If this was a big-bucks banking analysis- I'd do them all.
+
+```{r}
+table(age,horseColic$Age)
+table(pain,horseColic$pain)
+table(tempE,horseColic$temp_of_extremities)
+table(site1,horseColic$Lesion_1_site)
+```
+
+## Forming a new data frame using the factor data
+
+Rather than replace the data structure horseColic, I am going to create a new one,  formattedHorseColic.  I am going to use lower_underscore here
+
+```{R}
+formattedHorseColic=data.frame(surgery=surg, age=age,hospital_number=horseColic$Hospital_Number, rectal_temperature=horseColic$rectal_temperature, pulse=horseColic$pulse, respiratory_rate=horseColic$respiratory_rate, temperature_of_extremities=tempE, peripheral_pulse=ppulse, mucous_membranes=mm, capillary_refill_time=crt ,pain=pain, peristalsis=peristalsis ,abdominal_distension=distension, nasograstric_tube=ntube, nasogastric_reflux=nreflux,n_r_PH=horseColic$nasograstric_reflux, feces=feces,abdomen=abdomen, packed_cell_volume=horseColic$packed_cell_volume, total_protein=horseColic$total_protein, abdom_appearance=adbApp, adom_tot_protein=horseColic$abdomcentesis_total_protein, outcome=outcome, surgical_lesion=horseColic$surgical_lesion, lesion_1_site=site1, lesion_1_type=type1, lesion_1_subtype=subtype1, lesion_1_code=scode1, lesion_2_site=site2,lesion_2_type=type2, lesion_2_subtype=subtype2, lesion_2_code=scode2, lesion_3_site=site3,lesion_3_type=type3, lesion_3_subtype=subtype3, lesion_3_code=scode3)
+```
+
+
+The hospital_number entry looks like a unique identifier, I am going to use it as a row label
+```{R}
+row.names(formattedHorseColic)<-formattedHorseColic$hospital_number
+```
+Oops!  Nope, it looks like one horse was in the same hospital twice, since this code repeats.  Dang- we don't have unique specimen identifiers.
+
+How many different specimens do we have here?
+
+```{R}
+length(unique(formattedHorseColic$hospital_number))
+```
+
+
+
+
+
+
+Then, I'm going to save the formatted data as a csv file to disk
+```{R}
+write.table(formattedHorseColic,file="/Users/sheets/Dropbox/Data_Analytics/DAT511_Data_Cleaning/Lectures_Fall_2018/Example_data/Horse_Colic/horse-colic2.csv",sep=",",row.names=TRUE,col.names=TRUE)
+```
+
+
+Okay the data is loaded and formatted,   we can start to do a bit of exploratory data analysis (EDA) on this 
+data to start to understand what we need to do to clean the data.
+
+```{r}
+summary(formattedHorseColic)
+```
+
+
+Okay, a quick look at the file in Excel, or View and that's it for the formatting process
+
+```{r}
+View(formattedHorseColic)
+```
+
+
+## Thinking about all of this
+
+This started as an attempt to just load the data and get all the data formatting correct- but we also:
+
+1.) Identified a number of errors in the data format, but also some concerns about the rarity of some events
+
+2.) Located the lines where the errors occurred
+
+3.) Documented the process
+
+4.) Developed a script to let us repeat the data cleaning automatically, if the data set is changed, or we get more data- notice that we might have to alter some of the factor() lines if a new data set is used, so it won't be a completely automatic cleaning
+
+Next step- looking for anomalies in the data and understanding the general structure...
+
+

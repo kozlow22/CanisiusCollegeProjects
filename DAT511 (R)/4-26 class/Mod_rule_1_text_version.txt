@@ -1,0 +1,11 @@
+# Mod_rule_1_text_version
+# HD Sheets,  8/9/2018,  after van der Loo and de Jonge,  chapter 9
+
+if(x>6)
+  {
+    y<-"c"
+  }
+  if(y=="c")
+  {
+    x<-11
+  }
