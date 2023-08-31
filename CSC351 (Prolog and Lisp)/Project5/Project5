@@ -1,0 +1,48 @@
+;;;; Mike Kozlowski
+;;;; CSC351L
+;;;; Project 5 - Lisp Intro
+
+;;; average3 takes three inputs: val1, val2, and val3, then adds them together and divides by 3 to return the average.
+(defun average3 (val1 val2 val3)
+	(/ (+ val1 val2 val3) 3))
+	
+;;; sum-list takes a list (mylist) as an input and adds up all of the numbers in that list and returns the sum.
+(defun sum-list (mylist)
+	(if (null mylist)
+	0
+	(+ (car mylist) (sum-list (cdr mylist)))))
+	
+;;; average-list takes a list of values and adds them together and divides it by the length of the list to return the average,
+;;; leveraging sum-list to add up the total.
+(defun average-list (mylist)
+		(if (= (length mylist) 0)
+			nil
+			(/ (sum-list mylist) (length mylist))))
+
+;;; Takes a list and sends the cdr of the list off to reverse-helper which returns a reversed list, which is then appended to
+;;; the car of the original list, thus reversing the list aside from the first value.
+(defun reverse-rest (mylist)
+	(cons (car mylist) (reverse-helper (cdr mylist))))
+
+;;; Receives the cdr from reverse-rest and recursively calls itself with the cdr to then get added back together in reverse order
+;;; and returns the list back to reverse-rest for final assembly
+(defun reverse-helper (mylist)
+	(if (atom mylist)
+		nil
+		(cons (reverse-helper (cdr mylist)) (car mylist))))
+
+;;; Receives an integer and a list in order to insert that number into the list in ascending order by doing conditional checks
+;;; recursively until it cycles through the list.
+(defun insert-it (value mylist)
+	(if (null mylist)
+		(list value)
+		(if (< value (car mylist))
+			(cons value mylist)
+			(cons (car mylist) (insert-it value (cdr mylist))))))
+			
+;;; Recursively calls itself with the cdr of the list in order to use insert-it as a helper function and rebuild the list in
+;;; ascending order from scratch.
+(defun insertion-sort (mylist)
+	(if (null mylist)
+		nil
+		(insert-it (car mylist) (insertion-sort (cdr mylist)))))

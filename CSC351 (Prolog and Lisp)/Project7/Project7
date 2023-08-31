@@ -1,0 +1,46 @@
+;;;; Mike Kozlowski
+;;;; CSC351
+;;;; Project 7 - Lisp Evaluation and More Recursion
+
+;;; Fairly simple recursive way of evaluating a base raised to a power. cond keeps track of the state of power, and when it hits 0, it returns 1, following up through the stack from the base case recursions until you get the correct number of times that the base is multiplied by itself.
+(defun recurPower (base power)
+	(cond ((= power 0) 1)
+		(t (* (recurPower base (- power 1)) base))))
+
+;;; This one took me awhile to figure out, I spent a couple of hours trying to understand the 'do' and 'dolist' syntax for this and later functions in this program. This will take the number base and integer power, creates a local variable "outputlist" to keep track of the list as it's constructed. The do constructor then uses a counter to iterate until the counter (i) equals power. When i is less than power, I push a base number to the outputlist. When it does equal power, I use eval to evaluate the list, and make sure to cons a "*" on the beginning.
+(defun doPower (base power)
+	(let ((outputlist ()))
+		(do ((i 0 (1+ i)))
+			((>= i power) (eval (cons '* outputlist)))
+		(push base outputlist))))
+
+;;; This is fairly simple, just calling the helper functions to do the heavy lifting, while doing some outputs into the console using write and terpri as a newline. 
+(defun helperExtremes (mylist)
+	(write "Here is the smallest number in the list: ")
+	(write (smallHelper mylist))
+	(terpri)
+	(write "Here is the biggest number in the list: ")
+	(write (bigHelper mylist)))
+
+;;; smallHelper took a long time to figure out, as I had to learn the dolist syntax, which is not easily explained online. I start with if the list is null, then return NIL. Then, the local variable smallest is created which keeps track of the smallest value. dolist then iterates over the list, and when the value that is being evaluated in the loop is less than smallest, then setq sets it to smallest.
+(defun smallHelper (mylist)
+	(if (null mylist) nil
+		(let ((smallest (car mylist)))
+		(dolist (num (cdr mylist))
+			(when (< num smallest)
+			(setq smallest num))) smallest)))
+
+;;; bigHelper is the exact same thing as smallHelper with the sign flipped to greater than and the local var being named "biggest".
+(defun bigHelper (mylist)
+	(if (null mylist) nil
+		(let ((biggest (car mylist)))
+		(dolist (num (cdr mylist))
+			(when (> num biggest)
+			(setq biggest num))) biggest)))
+
+;;; Unfortunately, I couldnt get the recursive version to work. I got so frustrated that I ended up adding the vars smallest and biggest to the recursive call thinking it would make things at least function but after 3 hours of banging my head against the wall I have to call it quits on this one. The intention here was to have it return a list of the biggest and smallest if mylist was null, and if the car of mylist was smaller than smallest, then it replaced smallest in the call. If the car was larger than biggest, then it replaced biggest. If it was neither, then it would continue with a cdr. I am getting system errors when trying to compile without this function commented.
+;(defun recurExtremes (mylist smallest biggest)
+;	(cond ((null mylist) (list smallest biggest))
+;		((< (car mylist) smallest) ((recurExtremes (cdr mylist) (car mylist) biggest)))
+;		((> (car mylist) biggest) ((recurExtremes (cdr mylist) smallest (car mylist))))
+;		(t ((recurExtremes (cdr mylist) smallest biggest)))))

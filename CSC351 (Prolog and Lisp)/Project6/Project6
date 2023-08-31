@@ -1,0 +1,43 @@
+;;;; Mike Kozlowski
+;;;; CSC351
+;;;; Project 6 - Lisp Control Structures
+
+;;; Initially for this one, I simply tried to do (mapcar car mylist) but the error message told me to use #'. I'm going to be completely honest, I'm not sure why that made it work - but I appreciate the debugger giving me the answer here!
+;;; headList uses mapcar to cycle through the cars of each sublist within the list and returns that as a list.
+(defun headList (mylist)
+	(mapcar #'car mylist))
+
+;;; Since the nth function shows you the value of the index given + 1, I subtracted 1 from the length of the list, thus giving us the final entry in the list, no matter what length it is, and returns that.
+(defun lastElement (mylist)
+	(nth (- (length mylist) 1) mylist))
+
+;;; Taking into account when the list may be empty by using <= in the comparison, allButLast takes mylist and simply rebuilds the list until the list has a length of 1, meaning only the last value remains, and the function stops.
+(defun allButLast (mylist)
+	(if (<= (length mylist) 1)
+		nil
+		(cons (car mylist) (allButLast (cdr mylist)))))
+
+;;; Similarly for headList, I utilized #' to call the function lastElement on myList, which outputs the tail of the lists.
+(defun tailList (mylist)
+	(mapcar #'lastElement mylist))
+
+;;; First, removeApair sets up a cond for a recursive call, and then if the car is equal to the cadr, cddr of the list is returned, skipping the equal values, which continues until mylist returns null, and then the entire thing is rebuilt on the stack from the true case of the cond.
+(defun removeApair (mylist)
+	(cond ((null mylist) nil)
+        ((equal (car mylist) (cadr mylist)) (cddr mylist))
+        (t (cons (car mylist) (removeApair (cdr mylist))))))
+
+;;; I essentially modified removeApair by adding an additional recursive call when the cond finds a pair and returns the cddr. The main issue is, the final list is constructed in the true case, meaning there are no more calls left once the list is constructed. So, the function does not remove pairs that have been created by the list being compiled. I tried to add an if statement into the true case but it was a nightmare trying to get that syntax to work, I either ended up with NIL, an error, or the full list with nothing removed.
+(defun removePairs (mylist)
+	(cond ((null mylist) nil)
+        ((equal (car mylist) (cadr mylist)) (removePairs(cddr mylist)))
+        (t (cons (car mylist) (removePairs (cdr mylist))))))
+
+;;; Utilizing earlier written functions made this simple. lastElement pulls the last element, allButLast gives you the rest, so it's just a matter of combining the two.
+(defun rotate (mylist)
+	(cons (lastElement mylist) (allButLast mylist)))
+
+;;; I had a hard time of figuring out the syntax to do loops, so I decided to write this one recursively instead. Cond operates as my while loop here. While num is not equal to 0, I call the function again with num reduced by 1 and using rotate as a helper function to rotate the list each time.	
+(defun spin (mylist num)
+	(cond ((= num 0) mylist)
+		(t (spin (rotate mylist) (- num 1)))))
